@@ -1,0 +1,13 @@
+{
+  "name": "cybersentinel-ai",
+  "version": "1.0.0",
+  "description": "CyberSentinel AI Monorepo",
+  "private": true,
+  "workspaces": [
+    "frontend"
+  ],
+  "scripts": {
+    "install:all": "npm install && cd frontend && npm install && cd ../backend && pip install -r requirements.txt",
+    "start": "docker-compose up -d"
+  }
+}
