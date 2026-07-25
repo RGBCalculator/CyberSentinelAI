@@ -2,6 +2,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.database.connection import connect_to_mongo, close_mongo_connection
+from app.routers import auth
+from app.security.dependencies import get_current_active_user
+from app.models.user import User
+from fastapi import Depends
 from contextlib import asynccontextmanager
 import logging
 
@@ -24,6 +28,9 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# Register routers
+app.include_router(auth.router, prefix=settings.API_V1_STR)
+
 # CORS Configuration
 app.add_middleware(
     CORSMiddleware,
@@ -40,3 +47,8 @@ async def root():
 @app.get("/health")
 async def health_check():
     return {"status": "healthy"}
+
+@app.get(f"{settings.API_V1_STR}/protected", tags=["Test"])
+async def protected_route(current_user: User = Depends(get_current_active_user)):
+    """A temporary protected endpoint for verifying JWT authentication flow."""
+    return {"message": "Protected route accessed successfully", "user": current_user.email}
