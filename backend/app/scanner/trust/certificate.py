@@ -1,54 +1,30 @@
 """
 Certificate Analyzer for the Trust Intelligence Engine.
 
-This module provides the CertificateAnalyzer, which retrieves and parses
-SSL/TLS certificate information for a given target using an external provider.
+This module provides the CertificateAnalyzer, which retrieves raw SSL/TLS 
+certificate information from an external provider and parses it into a 
+structured CertificateInfo object using the cryptography library.
 """
 
 import logging
 from urllib.parse import urlparse
+from datetime import datetime
 from typing import Optional
 
+from cryptography import x509
+from cryptography.hazmat.backends import default_backend
+from cryptography.x509.oid import NameOID
+
 from app.scanner.trust.schemas import CertificateInfo
-
-# Attempt to import the SSLProvider. If it does not exist, we will define a
-# stub interface to be implemented later.
-try:
-    from app.scanner.trust.providers.ssl_provider import SSLProvider
-except ImportError:
-    class SSLProvider:
-        """
-        TODO: Implement SSLProvider in app.scanner.trust.providers.ssl_provider.
-        
-        This is a temporary interface/stub. The actual implementation should handle 
-        socket connections and SSL/TLS certificate retrieval.
-        """
-        def __init__(self):
-            pass
-
-        async def fetch_certificate(self, hostname: str) -> dict:
-            """
-            TODO: Fetch certificate details over the network.
-            
-            Args:
-                hostname (str): The domain name to query.
-                
-            Returns:
-                dict: A dictionary containing certificate properties such as
-                      issuer, subject, valid_from, valid_to, expired, self_signed,
-                      trusted_ca, serial_number, signature_algorithm, and key_size.
-            """
-            # Raise NotImplementedError to simulate failure if used before implementation
-            raise NotImplementedError("SSLProvider is not yet implemented.")
-
+from app.scanner.trust.providers.ssl_provider import SSLProvider
 
 logger = logging.getLogger(__name__)
 
 
 class CertificateAnalyzer:
     """
-    Analyzer responsible for SSL/TLS certificate inspection.
-    Delegates network communication to an injected or instantiated SSLProvider.
+    Analyzer responsible for parsing raw SSL/TLS certificate data into structured
+    CertificateInfo objects. Delegates networking to SSLProvider.
     """
 
     def __init__(self, provider: Optional[SSLProvider] = None):
@@ -80,30 +56,24 @@ class CertificateAnalyzer:
                 logger.warning("Could not extract a valid hostname from target: %s", target)
                 return cert_info
 
-            # Delegate networking to the SSL provider
-            cert_data = await self.provider.fetch_certificate(hostname)
-            if not cert_data:
+            # Retrieve raw certificate data
+            raw_cert = await self.provider.fetch_certificate(hostname)
+            if not raw_cert:
                 logger.warning("No certificate data returned for hostname: %s", hostname)
                 return cert_info
 
-            # Map the provider data to the CertificateInfo schema
-            cert_info.issuer = cert_data.get("issuer")
-            cert_info.subject = cert_data.get("subject")
-            cert_info.valid_from = cert_data.get("valid_from")
-            cert_info.valid_to = cert_data.get("valid_to")
-            cert_info.expired = bool(cert_data.get("expired", False))
-            cert_info.self_signed = bool(cert_data.get("self_signed", False))
-            cert_info.trusted_ca = bool(cert_data.get("trusted_ca", False))
-            cert_info.serial_number = cert_data.get("serial_number")
-            cert_info.signature_algorithm = cert_data.get("signature_algorithm")
-            
-            # Key size can sometimes be parsed as a string, ensure it is int if present
-            key_size = cert_data.get("key_size")
-            if key_size is not None:
-                try:
-                    cert_info.key_size = int(key_size)
-                except ValueError:
-                    logger.warning("Invalid key_size value retrieved: %s", key_size)
+            # Ensure we have bytes to parse with cryptography
+            if not isinstance(raw_cert, bytes):
+                logger.error("Expected raw certificate bytes, got %s", type(raw_cert))
+                return cert_info
+
+            # Parse the certificate using cryptography
+            cert = self._parse_certificate(raw_cert)
+            if not cert:
+                return cert_info
+
+            # Populate CertificateInfo
+            self._populate_from_x509(cert_info, cert)
 
         except Exception as e:
             logger.error(
@@ -118,15 +88,7 @@ class CertificateAnalyzer:
     def _extract_hostname(self, target: str) -> Optional[str]:
         """
         Extracts the hostname from a given URL or domain string.
-
-        Args:
-            target (str): The URL or domain name.
-
-        Returns:
-            Optional[str]: The extracted hostname, or None if extraction fails.
         """
-        # If the target doesn't have a scheme, urlparse might parse it incorrectly
-        # We prepend a dummy scheme to ensure correct parsing if missing.
         if "://" not in target:
             target = "https://" + target
 
@@ -134,9 +96,69 @@ class CertificateAnalyzer:
             parsed = urlparse(target)
             hostname = parsed.hostname
             if hostname:
-                # Remove any trailing dot from the hostname (FQDN edge case)
                 return hostname.rstrip('.')
             return None
         except ValueError as e:
             logger.debug("Failed to parse hostname from target '%s': %s", target, e)
             return None
+
+    def _parse_certificate(self, raw_cert: bytes) -> Optional[x509.Certificate]:
+        """
+        Parses raw certificate bytes using the cryptography library.
+        """
+        try:
+            # Try parsing as DER
+            return x509.load_der_x509_certificate(raw_cert, default_backend())
+        except ValueError:
+            try:
+                # Try parsing as PEM
+                return x509.load_pem_x509_certificate(raw_cert, default_backend())
+            except ValueError as e:
+                logger.error("Failed to parse certificate bytes as DER or PEM: %s", e)
+                return None
+        except Exception as e:
+            logger.error("Unexpected error parsing certificate: %s", e)
+            return None
+
+    def _populate_from_x509(self, cert_info: CertificateInfo, cert: x509.Certificate) -> None:
+        """
+        Populates CertificateInfo using a parsed cryptography x509 Certificate.
+        """
+        try:
+            # Issuer and Subject
+            issuer_attrs = cert.issuer.get_attributes_for_oid(NameOID.COMMON_NAME)
+            cert_info.issuer = issuer_attrs[0].value if issuer_attrs else str(cert.issuer)
+                
+            subject_attrs = cert.subject.get_attributes_for_oid(NameOID.COMMON_NAME)
+            cert_info.subject = subject_attrs[0].value if subject_attrs else str(cert.subject)
+
+            # Dates (handling naive and aware datetimes based on cryptography version)
+            cert_info.valid_from = getattr(cert, "not_valid_before_utc", cert.not_valid_before)
+            cert_info.valid_to = getattr(cert, "not_valid_after_utc", cert.not_valid_after)
+            
+            # Status flags
+            now = datetime.utcnow()
+            if cert_info.valid_to and cert_info.valid_to.tzinfo:
+                now = datetime.now(cert_info.valid_to.tzinfo)
+                
+            if cert_info.valid_to and cert_info.valid_from:
+                cert_info.expired = now > cert_info.valid_to or now < cert_info.valid_from
+                
+            cert_info.self_signed = cert.issuer == cert.subject
+            
+            # Trusted CA defaults to False as it requires a local trust store validation
+            cert_info.trusted_ca = False
+
+            # Other attributes
+            cert_info.serial_number = str(cert.serial_number)
+            
+            if hasattr(cert, "signature_algorithm_oid"):
+                cert_info.signature_algorithm = cert.signature_algorithm_oid._name
+            
+            # Key size
+            public_key = cert.public_key()
+            if hasattr(public_key, "key_size"):
+                cert_info.key_size = public_key.key_size
+
+        except Exception as e:
+            logger.error("Error extracting attributes from x509 certificate: %s", e)
