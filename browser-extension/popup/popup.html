@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CyberSentinel AI</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-container">
+    <header class="header">
+      <div class="header-content">
+        <div class="brand-group">
+          <div class="brand-badge" aria-hidden="true">
+            <svg class="shield-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+              <polyline points="9 12 11 14 15 10"></polyline>
+            </svg>
+          </div>
+          <div class="brand-text">
+            <h1 class="brand-title">CyberSentinel AI</h1>
+            <p class="brand-subtitle">Enterprise Security Scanner</p>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="main-content">
+      <section class="card card-hostname" aria-label="Current Website">
+        <div class="card-header">
+          <span class="card-label">Target Website</span>
+          <span class="status-indicator"></span>
+        </div>
+        <div class="card-body">
+          <p class="hostname-text" id="target-hostname">[Target Hostname]</p>
+        </div>
+      </section>
+
+      <section class="card card-status" aria-label="Security Status">
+        <div class="card-header">
+          <span class="card-label">Security Verdict</span>
+        </div>
+        <div class="card-body status-body">
+          <span class="status-badge" id="scan-status" role="status">[Status]</span>
+        </div>
+      </section>
+
+      <section class="card card-intelligence" aria-label="Threat Intelligence Metrics">
+        <div class="card-header">
+          <span class="card-label">Threat Intelligence</span>
+          <span class="ai-tag">AI ENGINE</span>
+        </div>
+        <div class="metrics-grid">
+          <div class="metric-box">
+            <span class="metric-label">Threat Score</span>
+            <span class="metric-value" id="threat-score">[Score]</span>
+          </div>
+          <div class="metric-box">
+            <span class="metric-label">Confidence</span>
+            <span class="metric-value" id="confidence-score">[Confidence]</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="card card-evidence" aria-label="Forensic Evidence">
+        <div class="card-header">
+          <span class="card-label">Forensic Evidence</span>
+        </div>
+        <div class="card-body">
+          <p class="placeholder-text" id="evidence-text">[No forensic evidence recorded for this session]</p>
+        </div>
+      </section>
+
+      <section class="card card-recommendation" aria-label="Security Recommendation">
+        <div class="card-header">
+          <span class="card-label">Recommendation</span>
+        </div>
+        <div class="card-body">
+          <p class="placeholder-text" id="recommendation-text">[Initiate scan to receive automated safety recommendations]</p>
+        </div>
+      </section>
+
+      <div class="action-section">
+        <button type="button" class="btn-primary" id="scan-button">
+          <span class="btn-icon" aria-hidden="true">⚡</span>
+          <span class="btn-text">Scan Website</span>
+        </button>
+      </div>
+    </main>
+
+    <footer class="footer">
+      <p class="version-text">CyberSentinel AI — v0.1.0 Enterprise</p>
+    </footer>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
