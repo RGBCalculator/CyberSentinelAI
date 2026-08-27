@@ -1,8 +1,10 @@
 import asyncio
 import json
+import pytest
 from app.scanner.schemas import ScanRequest, ScanType
 from app.scanner.orchestrator import ScanOrchestrator
 
+@pytest.mark.asyncio
 async def test_url_scanner():
     request = ScanRequest(
         target="http://192.168.1.1:8080/secure/login.php?user=admin",
