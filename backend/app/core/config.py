@@ -1,28 +1,34 @@
-import os
-from dotenv import load_dotenv
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field, SecretStr
 
-load_dotenv()
-
-class Settings:
+class Settings(BaseSettings):
     PROJECT_NAME: str = "CyberSentinel AI"
     VERSION: str = "1.0.0"
     API_V1_STR: str = "/api/v1"
-    
+
     # Database
-    MONGO_URI: str = os.getenv("MONGO_URI", "mongodb://localhost:27017/cybersentinel")
-    MONGO_DB_NAME: str = os.getenv("MONGO_DB_NAME", "cybersentinel")
-    
+    MONGO_URI: str
+    MONGO_DB_NAME: str = Field(default="cybersentinel")
+
     # Security
-    SECRET_KEY: str = os.getenv("SECRET_KEY", "placeholder_secret_key")
-    ALGORITHM: str = os.getenv("ALGORITHM", "HS256")
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
-    REFRESH_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("REFRESH_TOKEN_EXPIRE_MINUTES", "10080")) # Default 7 days
-    MAX_FAILED_LOGIN_ATTEMPTS: int = int(os.getenv("MAX_FAILED_LOGIN_ATTEMPTS", "5"))
-    ACCOUNT_LOCK_DURATION_MINUTES: int = int(os.getenv("ACCOUNT_LOCK_DURATION_MINUTES", "15"))
-    
+    SECRET_KEY: SecretStr
+    CORS_ORIGINS: list[str] = Field(default=["http://localhost:3000"])
+    ALGORITHM: str = Field(default="HS256")
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(default=30)
+    REFRESH_TOKEN_EXPIRE_MINUTES: int = Field(default=10080) # Default 7 days
+    MAX_FAILED_LOGIN_ATTEMPTS: int = Field(default=5)
+    ACCOUNT_LOCK_DURATION_MINUTES: int = Field(default=15)
+
     # Threat Intel
-    VIRUSTOTAL_API_KEY: str = os.getenv("VIRUSTOTAL_API_KEY", "")
-    PHISHTANK_API_KEY: str = os.getenv("PHISHTANK_API_KEY", "")
-    ABUSEIPDB_API_KEY: str = os.getenv("ABUSEIPDB_API_KEY", "")
+    VIRUSTOTAL_API_KEY: SecretStr = Field(default=SecretStr(""))
+    PHISHTANK_API_KEY: SecretStr = Field(default=SecretStr(""))
+    ABUSEIPDB_API_KEY: SecretStr = Field(default=SecretStr(""))
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=True,
+        extra="ignore"
+    )
 
 settings = Settings()

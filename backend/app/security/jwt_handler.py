@@ -24,7 +24,7 @@ def create_access_token(subject: str, expires_delta: Optional[timedelta] = None)
         "jti": str(uuid.uuid4())
     }
     
-    return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+    return jwt.encode(to_encode, settings.SECRET_KEY.get_secret_value(), algorithm=settings.ALGORITHM)
 
 def create_refresh_token(subject: str, expires_delta: Optional[timedelta] = None) -> str:
     """
@@ -45,7 +45,7 @@ def create_refresh_token(subject: str, expires_delta: Optional[timedelta] = None
         "type": "refresh"  # Custom claim to distinguish token types
     }
     
-    return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+    return jwt.encode(to_encode, settings.SECRET_KEY.get_secret_value(), algorithm=settings.ALGORITHM)
 
 def decode_token(token: str) -> Dict[str, Any]:
     """
@@ -55,7 +55,7 @@ def decode_token(token: str) -> Dict[str, Any]:
     try:
         payload = jwt.decode(
             token, 
-            settings.SECRET_KEY, 
+            settings.SECRET_KEY.get_secret_value(),
             algorithms=[settings.ALGORITHM]
         )
         return payload

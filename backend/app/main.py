@@ -7,9 +7,12 @@ from app.security.dependencies import get_current_active_user
 from app.models.user import User
 from fastapi import Depends
 from contextlib import asynccontextmanager
+from app.core.logger import setup_logging
+from app.core.handlers import setup_exception_handlers
+from app.middleware.correlation import CorrelationIdMiddleware
 import logging
 
-logging.basicConfig(level=logging.INFO)
+setup_logging()
 logger = logging.getLogger(__name__)
 
 @asynccontextmanager
@@ -28,18 +31,23 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Register routers
-app.include_router(auth.router, prefix=settings.API_V1_STR)
+# Setup RFC 7807 Exception Handlers
+setup_exception_handlers(app)
+
+# Register Middleware
+app.add_middleware(CorrelationIdMiddleware)
 
 # CORS Configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # Update with specific frontend origin in production
+    allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# Register routers
+app.include_router(auth.router, prefix=settings.API_V1_STR)
 @app.get("/")
 async def root():
     return {"message": f"Welcome to {settings.PROJECT_NAME} API", "status": "online"}
