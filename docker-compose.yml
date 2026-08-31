@@ -1,4 +1,3 @@
-version: '3.8'
 
 services:
   frontend:
@@ -19,6 +18,7 @@ services:
     environment:
       - MONGO_URI=mongodb://mongodb:27017/cybersentinel
       - MONGO_DB_NAME=cybersentinel
+      - SECRET_KEY=test_secret
     depends_on:
       - mongodb
 
