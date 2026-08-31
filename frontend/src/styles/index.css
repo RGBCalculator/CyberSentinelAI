@@ -1,0 +1,323 @@
+/* Cybersecurity Theme Styles for CyberSentinel AI */
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Inter:wght@300;400;600&display=swap');
+
+:root {
+  --bg-color: #05050a;
+  --panel-bg: #0d1117;
+  --text-main: #e6edf3;
+  --text-muted: #7d8590;
+  --neon-primary: #00f0ff;
+  --neon-secondary: #ff003c;
+  --accent: #3b82f6;
+  --success: #10b981;
+  --error: #ef4444;
+  --border-color: #30363d;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  height: 100%;
+  background-color: var(--bg-color);
+  color: var(--text-main);
+  font-family: 'Inter', sans-serif;
+}
+
+h1, h2, h3, h4, h5, h6, .neon-text {
+  font-family: 'Share Tech Mono', monospace;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.neon-text {
+  color: var(--neon-primary);
+  text-shadow: 0 0 5px rgba(0, 240, 255, 0.5), 0 0 10px rgba(0, 240, 255, 0.3);
+}
+
+/* Base App */
+.app-container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Authentication Views */
+.auth-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 20px;
+  background: radial-gradient(circle at center, #111827 0%, #05050a 100%);
+}
+
+.auth-card {
+  background-color: var(--panel-bg);
+  border: 1px solid var(--border-color);
+  border-top: 3px solid var(--neon-primary);
+  border-radius: 8px;
+  width: 100%;
+  max-width: 450px;
+  padding: 40px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+}
+
+.auth-header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.auth-header p {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin-top: 5px;
+  letter-spacing: 2px;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-group label {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.8rem;
+  color: var(--accent);
+  letter-spacing: 1px;
+}
+
+input {
+  background-color: #010409;
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  padding: 12px;
+  border-radius: 4px;
+  font-family: 'Inter', sans-serif;
+  transition: all 0.3s;
+}
+
+input:focus {
+  outline: none;
+  border-color: var(--neon-primary);
+  box-shadow: 0 0 0 1px var(--neon-primary);
+}
+
+/* Buttons */
+.btn-primary {
+  background-color: transparent;
+  color: var(--neon-primary);
+  border: 1px solid var(--neon-primary);
+  padding: 12px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 1rem;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.3s;
+  margin-top: 10px;
+  text-transform: uppercase;
+}
+
+.btn-primary:hover {
+  background-color: rgba(0, 240, 255, 0.1);
+  box-shadow: 0 0 10px rgba(0, 240, 255, 0.3);
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-outline {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  padding: 8px 16px;
+  cursor: pointer;
+  font-family: 'Share Tech Mono', monospace;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.btn-outline:hover {
+  border-color: var(--neon-secondary);
+  color: var(--neon-secondary);
+}
+
+.btn-link {
+  background: none;
+  border: none;
+  color: var(--neon-primary);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: inherit;
+  text-decoration: underline;
+}
+
+.auth-footer {
+  margin-top: 25px;
+  text-align: center;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+/* Alerts */
+.auth-error, .auth-success {
+  padding: 12px;
+  border-radius: 4px;
+  margin-bottom: 20px;
+  font-size: 0.9rem;
+  border-left: 3px solid;
+}
+
+.auth-error {
+  background-color: rgba(239, 68, 68, 0.1);
+  border-color: var(--error);
+  color: #fca5a5;
+}
+
+.auth-success {
+  background-color: rgba(16, 185, 129, 0.1);
+  border-color: var(--success);
+  color: #6ee7b7;
+}
+
+/* Dashboard */
+.dashboard-container {
+  padding: 0;
+}
+
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 40px;
+  background-color: var(--panel-bg);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.status-indicator {
+  color: var(--success);
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-indicator::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  background-color: var(--success);
+  border-radius: 50%;
+  box-shadow: 0 0 5px var(--success);
+}
+
+.dashboard-main {
+  padding: 40px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: 30px;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.panel {
+  background-color: var(--panel-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 25px;
+}
+
+.panel h3 {
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 15px;
+  margin-bottom: 20px;
+}
+
+.info-grid {
+  display: grid;
+  gap: 15px;
+}
+
+.info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.info-label {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.75rem;
+  color: var(--accent);
+}
+
+.info-value {
+  font-size: 1rem;
+}
+
+.role-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  background-color: rgba(59, 130, 246, 0.1);
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-family: 'Share Tech Mono', monospace;
+  width: fit-content;
+}
+
+.action-panel p {
+  color: var(--text-muted);
+  margin-bottom: 20px;
+  font-size: 0.95rem;
+}
+
+.mt-4 {
+  margin-top: 16px;
+}
+
+.api-response {
+  margin-top: 25px;
+  padding: 15px;
+  border-radius: 4px;
+  background-color: #010409;
+  border-left: 3px solid;
+}
+
+.api-response.success {
+  border-color: var(--success);
+}
+
+.api-response.error {
+  border-color: var(--error);
+}
+
+.api-response h4 {
+  margin-bottom: 10px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.api-response pre {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.85rem;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  color: var(--text-main);
+}
