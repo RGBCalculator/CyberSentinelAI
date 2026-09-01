@@ -1,4 +1,4 @@
-from pymongo import AsyncMongoClient
+from motor.motor_asyncio import AsyncIOMotorClient
 from beanie import init_beanie
 from app.core.config import settings
 import logging
@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 
 
 class Database:
-    client: AsyncMongoClient = None
+    client: AsyncIOMotorClient = None
     db = None
 
 
@@ -16,7 +16,7 @@ db_instance = Database()
 
 async def connect_to_mongo():
     try:
-        db_instance.client = AsyncMongoClient(settings.MONGO_URI)
+        db_instance.client = AsyncIOMotorClient(settings.MONGO_URI)
         db_instance.db = db_instance.client[settings.MONGO_DB_NAME]
 
         await init_beanie(
