@@ -44,4 +44,8 @@ export const api = {
   login: (email, password) => api.post('/v1/auth/login', { email, password }),
   register: (userData) => api.post('/v1/auth/register', userData),
   testProtected: () => api.get('/v1/protected'),
+  
+  // CyberSentinel Phase 12 methods
+  getPosture: () => api.get('/v1/posture'),
+  getFinding: (id) => api.get(`/v1/findings/${id}`),
 };
