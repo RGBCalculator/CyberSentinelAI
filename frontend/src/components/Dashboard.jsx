@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { api } from '../services/api';
+import PostureView from './PostureView';
 
 const Dashboard = ({ user, onLogout }) => {
   const [testResult, setTestResult] = useState(null);
@@ -79,6 +80,10 @@ const Dashboard = ({ user, onLogout }) => {
           )}
         </section>
       </main>
+      
+      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 40px 40px' }}>
+        <PostureView />
+      </div>
     </div>
   );
 };
