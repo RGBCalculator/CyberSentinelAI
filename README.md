@@ -27,18 +27,42 @@ The platform is designed as a modular, microservices-ready architecture:
 - **Machine Learning**: Scikit-Learn, Random Forest, XGBoost, SHAP, LIME, TensorFlow, PyTorch, OpenCV, pyzbar.
 - **Deployment**: Docker, Docker Compose, GitHub, Render.
 
-## Installation
-1. Clone the repository.
-2. Setup environment variables using `.env.example`.
-3. Start backend services: `cd backend && pip install -r requirements.txt && uvicorn app.main:app --reload`
-4. Start frontend app: `cd frontend && npm install && npm run dev`
-5. (Optional) Run via Docker: `docker-compose up -d`
+## CyberSentinel AI SOC Capabilities
+The unified Security Operations Center (SOC) dashboard includes:
+- **SOC Executive Overview**: Real-time risk scoring, posture distribution, scanner health, recent detections, and operational shortcuts.
+- **URL Threat Scanner**: Real-time multi-stage threat detection engine combining static heuristics, rule engines, live threat feeds, and AI analysis.
+- **Website Security & Trust Intelligence**: Deep SSL/TLS certificate analysis, domain provenance, DNS inspection, and calculated trust ratings.
+- **Threat Intelligence Hub**: Provider status matrix and live indicator lookup for VirusTotal, PhishTank, OpenPhish, and AbuseIPDB.
+- **Findings Explorer**: High-density findings management with severity filters, asset drilldowns, and remediation guidance.
+- **Explainable AI (XAI) Workbench**: Feature attribution waterfall charts, local feature weights, and calibrated probability scoring.
+- **Executive Security Reports**: Printable briefings and downloadable JSON audits.
+- **SSRF Safety Engine**: Protection against loopback, cloud metadata (AWS/GCP/Azure `169.254.169.254`), and RFC1918 subnets.
 
-## Future Modules
-- Browser Extension for real-time protection.
-- QR Code Phishing Detection.
-- Deep Learning based Fake Login Page Detection.
-- Automated Report Generation & Advanced Analytics Dashboard.
+## Installation & Running Locally
 
-## Development Roadmap
-See `documentation/Roadmap.md` for a detailed phased approach.
+### Option A: Docker Compose (Recommended)
+```bash
+docker compose up -d --build
+```
+- Frontend: `http://localhost:3000`
+- Backend API & Swagger: `http://localhost:8000/docs`
+- MongoDB: `localhost:27017`
+
+### Option B: Local Development
+```bash
+# Backend
+cd backend
+pip install -r requirements.txt
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+
+# Frontend
+cd frontend
+npm install
+npm run dev
+```
+
+## Running Unit Tests
+```bash
+python -m pytest -o pythonpath="backend ." tests/unit -v
+```
+

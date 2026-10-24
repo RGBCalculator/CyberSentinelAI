@@ -87,4 +87,100 @@ async def scan_target(
             detail="Scan processing failed. Please verify the target and try again."
         )
 
+    # Persist scan history to MongoDB (fail-safe for offline/mock environments)
+    try:
+        from app.models.scan import ScanRecord
+        critical_count = sum(1 for f in result.findings if getattr(f.severity, "value", f.severity) == "critical")
+        high_count = sum(1 for f in result.findings if getattr(f.severity, "value", f.severity) == "high")
+        medium_count = sum(1 for f in result.findings if getattr(f.severity, "value", f.severity) == "medium")
+        low_count = sum(1 for f in result.findings if getattr(f.severity, "value", f.severity) == "low")
+
+        record = ScanRecord(
+            scan_id=result.scan_id,
+            target=request.target,
+            scan_type=request.scan_type.value,
+            status=result.status.value,
+            risk_level=result.risk_level.value,
+            risk_score=float(result.risk_score),
+            overall_confidence=float(result.overall_confidence),
+            execution_duration=float(result.execution_duration),
+            findings_count=len(result.findings),
+            critical_count=critical_count,
+            high_count=high_count,
+            medium_count=medium_count,
+            low_count=low_count,
+            findings=[f.model_dump(mode="json") if hasattr(f, "model_dump") else dict(f) for f in result.findings],
+            threat_intel=result.threat_intel,
+            ai_analysis=result.ai_analysis,
+            statistics=result.statistics,
+            created_at=result.created_at
+        )
+        await record.insert()
+    except Exception as db_err:
+        logger.debug("Could not persist ScanRecord to MongoDB (non-fatal): %s", db_err)
+
     return result
+
+
+@router.get(
+    "/scans",
+    summary="Get recent scans",
+    description="Returns a paginated list of historical security scans from MongoDB."
+)
+async def get_recent_scans(
+    limit: int = 20,
+    skip: int = 0,
+    risk_level: Optional[str] = None
+):
+    """Retrieves recent scans for the SOC dashboard."""
+    try:
+        from app.models.scan import ScanRecord
+        query = {}
+        if risk_level:
+            query["risk_level"] = risk_level.lower()
+        
+        records = await ScanRecord.find(query).sort("-created_at").skip(skip).limit(min(limit, 100)).to_list()
+        total = await ScanRecord.find(query).count()
+        return {
+            "total": total,
+            "scans": [
+                {
+                    "scan_id": r.scan_id,
+                    "target": r.target,
+                    "scan_type": r.scan_type,
+                    "risk_level": r.risk_level,
+                    "risk_score": r.risk_score,
+                    "findings_count": r.findings_count,
+                    "critical_count": r.critical_count,
+                    "high_count": r.high_count,
+                    "execution_duration": r.execution_duration,
+                    "threat_intel_verdict": r.threat_intel.get("verdict", "unknown") if r.threat_intel else "unknown",
+                    "ai_prediction": r.ai_analysis.get("prediction", "unknown") if r.ai_analysis else "unknown",
+                    "created_at": r.created_at.isoformat() if hasattr(r.created_at, "isoformat") else str(r.created_at)
+                }
+                for r in records
+            ]
+        }
+    except Exception as err:
+        logger.warning("Failed retrieving scans from MongoDB: %s", err)
+        return {"total": 0, "scans": []}
+
+
+@router.get(
+    "/scans/{scan_id}",
+    summary="Get scan by ID",
+    description="Retrieves a specific historical scan record."
+)
+async def get_scan_by_id(scan_id: str):
+    """Retrieves an individual scan report by ID."""
+    try:
+        from app.models.scan import ScanRecord
+        record = await ScanRecord.find_one(ScanRecord.scan_id == scan_id)
+        if not record:
+            raise HTTPException(status_code=404, detail="Scan record not found.")
+        return record.model_dump(mode="json")
+    except HTTPException:
+        raise
+    except Exception as err:
+        logger.error("Error retrieving scan %s: %s", scan_id, err)
+        raise HTTPException(status_code=500, detail="Database query failed.")

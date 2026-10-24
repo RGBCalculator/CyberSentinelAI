@@ -1,6 +1,6 @@
 from enum import Enum
 from typing import Any, Dict, List, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from datetime import datetime, timezone
 import uuid
 
@@ -63,11 +63,22 @@ class ScanRequest(BaseModel):
         scan_type: The type of scan to perform.
         metadata: Optional dictionary for additional context (e.g., source IP, user agent).
     """
-    target: str = Field(..., description="The asset to be scanned (e.g., URL, IP, domain)")
-    scan_type: ScanType = Field(..., description="The category of the scan")
+    target: str = Field(default="", description="The asset to be scanned (e.g., URL, IP, domain)")
+    scan_type: ScanType = Field(default=ScanType.URL, description="The category of the scan")
+    url: Optional[str] = Field(default=None, description="Optional alias for target when scanning URLs")
     metadata: Optional[Dict[str, Any]] = Field(
         default_factory=dict, description="Additional contextual information"
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def populate_target_and_type(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            if not data.get("target") and data.get("url"):
+                data["target"] = data["url"]
+            if not data.get("scan_type"):
+                data["scan_type"] = ScanType.URL
+        return data
 
 
 class Evidence(BaseModel):

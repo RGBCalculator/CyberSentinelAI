@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.database.connection import connect_to_mongo, close_mongo_connection
-from app.routers import auth, posture, scan
+from app.routers import auth, posture, scan, dashboard
 from app.security.dependencies import get_current_active_user
 from app.models.user import User
 from fastapi import Depends
@@ -50,6 +50,7 @@ app.add_middleware(
 app.include_router(auth.router, prefix=settings.API_V1_STR)
 app.include_router(posture.router, prefix=settings.API_V1_STR)
 app.include_router(scan.router, prefix=settings.API_V1_STR)
+app.include_router(dashboard.router, prefix=settings.API_V1_STR)
 @app.get("/")
 async def root():
     return {"message": f"Welcome to {settings.PROJECT_NAME} API", "status": "online"}

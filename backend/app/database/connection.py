@@ -22,7 +22,8 @@ async def connect_to_mongo():
         await init_beanie(
             database=db_instance.db,
             document_models=[
-                "app.models.user.User"
+                "app.models.user.User",
+                "app.models.scan.ScanRecord"
             ]
         )
 

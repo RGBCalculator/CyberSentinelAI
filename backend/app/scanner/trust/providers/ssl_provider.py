@@ -62,7 +62,7 @@ class SSLProvider:
                 # binary_form=False returns it as a parsed dictionary.
                 ssl_object = writer.get_extra_info('ssl_object')
                 if ssl_object:
-                    cert = ssl_object.getpeercert(binary_form=False)
+                    cert = ssl_object.getpeercert(binary_form=True)
                     return cert
                 else:
                     logger.error("No SSL object found on connection to %s:%d", hostname, port)

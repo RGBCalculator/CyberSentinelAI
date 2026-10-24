@@ -96,17 +96,25 @@ class ScanOrchestrator:
 
     async def _fetch_threat_intel(self, target: str, scan_type: str) -> Dict[str, Any]:
         """
-        Placeholder for external Threat Intelligence lookups (e.g., VirusTotal, AbuseIPDB).
+        Executes external Threat Intelligence lookups (VirusTotal, PhishTank, OpenPhish, AbuseIPDB).
         """
-        # TODO: Inject and call ThreatIntelligenceService
-        return {"provider": "placeholder", "malicious": False}
+        try:
+            from app.services.threat_intel import threat_intel_service
+            return await threat_intel_service.lookup(target, indicator_type=scan_type)
+        except Exception as e:
+            logger.warning("Threat intelligence lookup encountered non-fatal error: %s", e)
+            return {"provider": "threat_intel_hub", "verdict": "unknown", "malicious": False, "error": str(e)}
 
     async def _run_ai_analysis(self, target: str, scanner_findings: List[Finding]) -> Dict[str, Any]:
         """
-        Placeholder for passing features into the AI Engine for predictions.
+        Extracts ML features, calculates calibrated probabilities, and generates explainability attributions.
         """
-        # TODO: Inject and call AIEngine
-        return {"model": "placeholder", "confidence": 0.0, "prediction": "benign"}
+        try:
+            from app.services.ai_service import explainable_ai_service
+            return await explainable_ai_service.analyze(target)
+        except Exception as e:
+            logger.warning("AI analysis encountered non-fatal error: %s", e)
+            return {"model": "CyberSentinel-Ensemble-XGBv2", "confidence": 0.0, "prediction": "unknown", "error": str(e)}
 
     def _calculate_final_risk(self, result: ScanResult, scanner_findings: List[Finding], ti_data: Dict[str, Any], ai_data: Dict[str, Any]) -> None:
         """

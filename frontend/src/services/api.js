@@ -48,7 +48,28 @@ export const api = {
   register: (userData) => api.post('/v1/auth/register', userData),
   testProtected: () => api.get('/v1/protected'),
   
-  // CyberSentinel Phase 12 methods
+  // Security Posture (Demo repository intelligence)
   getPosture: () => api.get('/v1/posture'),
   getFinding: (id) => api.get(`/v1/findings/${id}`),
+
+  // Unified SOC & Scanner
+  getSocOverview: () => api.get('/v1/soc/overview'),
+  scanUrl: (url, metadata = {}) => api.post('/v1/scan', { target: url, scan_type: 'url', metadata }),
+  getRecentScans: (limit = 20, skip = 0, riskLevel = null) => {
+    let url = `/v1/scans?limit=${limit}&skip=${skip}`;
+    if (riskLevel) url += `&risk_level=${riskLevel}`;
+    return api.get(url);
+  },
+  getScanById: (id) => api.get(`/v1/scans/${id}`),
+
+  // Website Security & Trust Intelligence
+  analyzeWebsite: (target) => api.post('/v1/website/analyze', { target }),
+
+  // Threat Intelligence
+  getThreatIntelStatus: () => api.get('/v1/threat-intel/status'),
+  lookupThreatIntel: (indicator, indicatorType = 'url') => 
+    api.post('/v1/threat-intel/lookup', { indicator, indicator_type: indicatorType }),
+
+  // Reports Export
+  exportReport: () => api.get('/v1/reports/export'),
 };
