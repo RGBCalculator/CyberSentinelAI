@@ -24,8 +24,9 @@ class TrustLevel(str, Enum):
 
 class CertificateInfo(BaseModel):
     """
-    Schema containing details about an SSL/TLS certificate.
+    Schema containing detailed telemetry about an SSL/TLS certificate.
     """
+    connection_success: bool = False
     issuer: Optional[str] = None
     subject: Optional[str] = None
     valid_from: Optional[datetime] = None
@@ -35,7 +36,18 @@ class CertificateInfo(BaseModel):
     trusted_ca: bool = False
     serial_number: Optional[str] = None
     signature_algorithm: Optional[str] = None
+    public_key_algorithm: Optional[str] = None
     key_size: Optional[int] = None
+    fingerprint_sha256: Optional[str] = None
+    subject_alt_names: List[str] = Field(default_factory=list)
+    tls_version: Optional[str] = None
+    cipher_suite: Optional[str] = None
+    hostname_matched: Optional[bool] = None
+    verification_error: Optional[str] = None
+    http_to_https_redirect: Optional[bool] = None
+    days_until_expiration: Optional[int] = None
+    is_badssl_test_target: bool = False
+    expected_condition: Optional[str] = None
 
 
 class DomainInfo(BaseModel):
@@ -87,3 +99,5 @@ class TrustResult(BaseModel):
     trust_score: float = 50.0
     trust_level: TrustLevel = TrustLevel.MEDIUM
     reasons: List[str] = Field(default_factory=list)
+    is_test_case: bool = False
+    test_case_note: Optional[str] = None

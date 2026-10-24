@@ -40,6 +40,7 @@ class ScanOrchestrator:
         # Initialize result with PENDING status
         result = ScanResult(
             scan_id=scan_id,
+            target=request.target,
             status=ScanStatus.PENDING,
             risk_level=RiskLevel.SAFE,
             risk_score=0.0

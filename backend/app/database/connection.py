@@ -47,3 +47,13 @@ async def close_mongo_connection():
 
 def get_db():
     return db_instance.db
+
+
+async def check_mongo_health() -> bool:
+    if not db_instance.client:
+        return False
+    try:
+        await db_instance.client.admin.command("ping")
+        return True
+    except Exception:
+        return False

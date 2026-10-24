@@ -29,6 +29,9 @@ logger = logging.getLogger(__name__)
 class ThreatIntelligenceService:
     def __init__(self):
         self.timeout = 8.0
+        self._cache: Dict[str, Tuple[float, Dict[str, Any]]] = {}
+        self._cache_ttl: float = 900.0  # 15 minutes TTL
+        self._max_cache_entries: int = 500
 
     def get_providers_status(self) -> Dict[str, Any]:
         """
@@ -45,38 +48,55 @@ class ThreatIntelligenceService:
                 "configured": bool(vt_key and vt_key != "your_virustotal_api_key"),
                 "status": "ready" if bool(vt_key and vt_key != "your_virustotal_api_key") else "unconfigured",
                 "capabilities": ["url", "domain", "ip", "hash"],
-                "description": "Multi-engine malware, phishing, and URL scanner aggregating 70+ antivirus engines."
+                "description": "Multi-engine malware, phishing, and URL scanner aggregating 70+ antivirus engines.",
+                "setup_instructions": "Register at virustotal.com and set VIRUSTOTAL_API_KEY in your environment to enable live multi-engine scans."
             },
             "phishtank": {
                 "name": "PhishTank",
                 "configured": bool(pt_key and pt_key != "your_phishtank_api_key"),
                 "status": "ready" if bool(pt_key and pt_key != "your_phishtank_api_key") else "unconfigured",
                 "capabilities": ["url"],
-                "description": "Crowdsourced database of verified phishing URLs operated by Cisco Talos."
+                "description": "Crowdsourced database of verified phishing URLs operated by Cisco Talos.",
+                "setup_instructions": "Register at phishtank.org and set PHISHTANK_API_KEY in your environment to query verified phishing feeds."
             },
             "openphish": {
                 "name": "OpenPhish",
                 "configured": True,  # Community feed does not require an API key
                 "status": "ready",
                 "capabilities": ["url", "domain"],
-                "description": "Autonomous real-time phishing threat intelligence feed and zero-day detection."
+                "description": "Autonomous real-time phishing threat intelligence feed and zero-day detection.",
+                "setup_instructions": "Community feed is active by default. Premium feeds can be configured via environment."
             },
             "abuseipdb": {
                 "name": "AbuseIPDB",
                 "configured": bool(abuse_key and abuse_key != "your_abuseipdb_api_key"),
                 "status": "ready" if bool(abuse_key and abuse_key != "your_abuseipdb_api_key") else "unconfigured",
                 "capabilities": ["ip"],
-                "description": "IP reputation database tracking abusive IPs, botnets, and DDoS actors."
+                "description": "IP reputation database tracking abusive IPs, botnets, and DDoS actors.",
+                "setup_instructions": "Obtain a free API key at abuseipdb.com and set ABUSEIPDB_API_KEY in your environment."
             }
         }
 
     async def lookup(self, indicator: str, indicator_type: str = "url") -> Dict[str, Any]:
         """
-        Queries all configured intelligence providers concurrently.
+        Queries all configured intelligence providers concurrently with in-memory TTL caching.
         """
+        clean_indicator = indicator.strip()
+        cache_key = f"{indicator_type.lower()}:{clean_indicator.lower()}"
+        now_ts = datetime.now(timezone.utc).timestamp()
+
+        # Check Cache
+        if cache_key in self._cache:
+            entry_ts, cached_data = self._cache[cache_key]
+            if now_ts - entry_ts < self._cache_ttl:
+                cached_copy = dict(cached_data)
+                cached_copy["from_cache"] = True
+                cached_copy["cache_age_seconds"] = int(now_ts - entry_ts)
+                return cached_copy
+
         timestamp = datetime.now(timezone.utc).isoformat()
         results: Dict[str, Any] = {
-            "indicator": indicator,
+            "indicator": clean_indicator,
             "indicator_type": indicator_type,
             "queried_at": timestamp,
             "providers": {},
@@ -85,22 +105,23 @@ class ThreatIntelligenceService:
             "clean_count": 0,
             "unconfigured_count": 0,
             "error_count": 0,
-            "evidence": []
+            "evidence": [],
+            "from_cache": False
         }
 
         # Check SSRF before making outbound requests
-        safe, reason = is_safe_target_for_network(indicator)
+        safe, reason = is_safe_target_for_network(clean_indicator)
         if not safe:
-            logger.warning("Threat intel lookup skipped for internal target: %s (%s)", indicator, reason)
+            logger.warning("Threat intel lookup skipped for internal target: %s (%s)", clean_indicator, reason)
             results["verdict"] = "internal_target"
             results["message"] = reason
             return results
 
         tasks = [
-            self._query_openphish(indicator),
-            self._query_virustotal(indicator, indicator_type),
-            self._query_phishtank(indicator),
-            self._query_abuseipdb(indicator, indicator_type),
+            self._query_openphish(clean_indicator),
+            self._query_virustotal(clean_indicator, indicator_type),
+            self._query_phishtank(clean_indicator),
+            self._query_abuseipdb(clean_indicator, indicator_type),
         ]
 
         provider_outcomes = await asyncio.gather(*tasks, return_exceptions=True)
@@ -129,6 +150,13 @@ class ThreatIntelligenceService:
             results["verdict"] = "clean"
         else:
             results["verdict"] = "inconclusive"
+
+        # Update bounded cache
+        if len(self._cache) >= self._max_cache_entries:
+            oldest_keys = sorted(self._cache.keys(), key=lambda k: self._cache[k][0])[:100]
+            for k in oldest_keys:
+                self._cache.pop(k, None)
+        self._cache[cache_key] = (now_ts, results)
 
         return results
 

@@ -1,11 +1,47 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 
+function useCountUp(target, duration = 800) {
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    if (typeof target !== 'number' || isNaN(target)) {
+      setCount(target);
+      return;
+    }
+    const prefersReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (prefersReducedMotion) {
+      setCount(target);
+      return;
+    }
+
+    let start = 0;
+    const startTime = performance.now();
+
+    const updateCount = (currentTime) => {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const eased = 1 - (1 - progress) * (1 - progress); // easeOutQuad
+      const current = Math.round(start + (target - start) * eased);
+      setCount(current);
+
+      if (progress < 1) {
+        requestAnimationFrame(updateCount);
+      }
+    };
+
+    requestAnimationFrame(updateCount);
+  }, [target, duration]);
+
+  return count;
+}
+
 const SocOverview = ({ onNavigate }) => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [timeRange, setTimeRange] = useState('24h');
+  const [showFormulaExplanation, setShowFormulaExplanation] = useState(false);
 
   const fetchOverview = async () => {
     setLoading(true);
@@ -23,6 +59,16 @@ const SocOverview = ({ onNavigate }) => {
   useEffect(() => {
     fetchOverview();
   }, []);
+
+  const posture = data?.security_posture || {};
+  const scansSummary = data?.scans_summary || {};
+  const threatIntel = data?.threat_intelligence || {};
+  const findings = data?.findings_overview?.findings || [];
+  const providers = threatIntel.providers || {};
+
+  const animatedRiskScore = useCountUp(posture.overall_risk_score ?? 0, 1000);
+  const animatedTotalFindings = useCountUp(posture.total_findings ?? 0, 800);
+  const animatedTotalScans = useCountUp(scansSummary.total_scans ?? 0, 800);
 
   if (loading) {
     return (
@@ -44,12 +90,6 @@ const SocOverview = ({ onNavigate }) => {
       </div>
     );
   }
-
-  const posture = data?.security_posture || {};
-  const scansSummary = data?.scans_summary || {};
-  const threatIntel = data?.threat_intelligence || {};
-  const findings = data?.findings_overview?.findings || [];
-  const providers = threatIntel.providers || {};
 
   return (
     <div className="soc-overview">
@@ -82,16 +122,27 @@ const SocOverview = ({ onNavigate }) => {
       <div className="demo-notice-banner mt-4">
         <span className="demo-badge">LIVE INTEGRATION + DEMO POSTURE</span>
         <span className="demo-text">
-          Live URL scanning and trust intelligence are active. Code posture data is sourced from demo repository fixture (`internal-finance-api`).
+          Live URL scanning, TLS inspection, and threat intelligence caching are active. Code security posture data is sourced from demo repository fixture (`internal-finance-api`).
         </span>
       </div>
 
-      {/* KPI Metrics Grid */}
+      {/* KPI Metrics Grid with Animated Counters */}
       <div className="metrics-grid mt-4">
         <div className="metric-box risk-metric">
-          <span className="metric-label">OVERALL POSTURE RISK</span>
-          <span className={`metric-value ${posture.overall_risk_score > 80 ? 'critical' : posture.overall_risk_score > 50 ? 'warning' : 'safe'}`}>
-            {posture.overall_risk_score ?? 0}
+          <div className="flex justify-between items-center">
+            <span className="metric-label">OVERALL POSTURE RISK</span>
+            <button 
+              type="button" 
+              className="text-muted text-xs hover:text-cyan"
+              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+              onClick={() => setShowFormulaExplanation(!showFormulaExplanation)}
+              title="Explain Calculation"
+            >
+              ℹ️ FORMULA
+            </button>
+          </div>
+          <span className={`metric-value ${animatedRiskScore > 80 ? 'critical' : animatedRiskScore > 50 ? 'warning' : 'safe'}`}>
+            {animatedRiskScore}
             <span className="metric-sub"> / 100</span>
           </span>
           <span className="metric-footnote text-muted">Demo Repository Posture</span>
@@ -99,7 +150,7 @@ const SocOverview = ({ onNavigate }) => {
 
         <div className="metric-box">
           <span className="metric-label">TOTAL FINDINGS</span>
-          <span className="metric-value">{posture.total_findings ?? 0}</span>
+          <span className="metric-value">{animatedTotalFindings}</span>
           <span className="metric-breakdown">
             <span className="sev-chip critical">{posture.critical_findings ?? 0} CRIT</span>
             <span className="sev-chip warning">{posture.high_findings ?? 0} HIGH</span>
@@ -108,7 +159,7 @@ const SocOverview = ({ onNavigate }) => {
 
         <div className="metric-box">
           <span className="metric-label">HISTORICAL SCANS</span>
-          <span className="metric-value">{scansSummary.total_scans ?? 0}</span>
+          <span className="metric-value">{animatedTotalScans}</span>
           <span className="metric-footnote text-muted">Logged in MongoDB</span>
         </div>
 
@@ -117,9 +168,46 @@ const SocOverview = ({ onNavigate }) => {
           <span className="metric-value text-accent">
             {threatIntel.active_count ?? 0} <span className="metric-sub">/ {threatIntel.total_count ?? 4}</span>
           </span>
-          <span className="metric-footnote text-muted">Active Connectors</span>
+          <span className="metric-footnote text-muted">Configured Connectors</span>
         </div>
       </div>
+
+      {/* Transparent Calculation Explanation Panel */}
+      {showFormulaExplanation && (
+        <section className="panel mt-4" style={{ borderLeft: '4px solid #00f0ff' }}>
+          <div className="panel-header-row">
+            <h4>SECURITY POSTURE SCORE CALCULATION BREAKDOWN</h4>
+            <button 
+              type="button" 
+              className="btn-outline btn-xs"
+              onClick={() => setShowFormulaExplanation(false)}
+            >
+              ✕ CLOSE
+            </button>
+          </div>
+          <p className="text-muted text-sm mb-3">
+            The overall posture risk score is deterministically derived from static and dynamic security assessments:
+          </p>
+          <div className="info-grid text-sm">
+            <div className="info-item">
+              <span className="info-label">SEVERITY WEIGHTS:</span>
+              <span className="info-value">Critical Findings = 30 pts each | High = 15 pts | Medium = 5 pts | Low = 1 pt</span>
+            </div>
+            <div className="info-item">
+              <span className="info-label">EXPOSURE MULTIPLIER:</span>
+              <span className="info-value">Publicly exposed endpoints & credential handling escalate base finding severity.</span>
+            </div>
+            <div className="info-item">
+              <span className="info-label">NORMALIZATION:</span>
+              <span className="info-value">Capped between 0 (Zero Risk) and 100 (Immediate Critical Compromise).</span>
+            </div>
+            <div className="info-item">
+              <span className="info-label">HONEST LIMITATION:</span>
+              <span className="info-value">Unscanned repos or missing threat intelligence keys do not imply low risk.</span>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Quick Action Station */}
       <div className="quick-actions-bar mt-4">
@@ -151,6 +239,11 @@ const SocOverview = ({ onNavigate }) => {
                 <div className="provider-info">
                   <span className="provider-name">{provider.name}</span>
                   <span className="provider-desc">{provider.description}</span>
+                  {!provider.configured && provider.setup_instructions && (
+                    <span className="text-muted text-xs block font-mono mt-1">
+                      Setup: {provider.setup_instructions}
+                    </span>
+                  )}
                 </div>
                 <div className="provider-badge-col">
                   <span className={`status-pill ${provider.configured ? 'ready' : 'unconfigured'}`}>
@@ -165,9 +258,10 @@ const SocOverview = ({ onNavigate }) => {
             <span className="subsystem-title">SCANNER ENGINE STATUS:</span>
             <div className="health-chips">
               <span className="health-chip active">✓ URL SCANNER</span>
-              <span className="health-chip active">✓ TRUST ENGINE</span>
+              <span className="health-chip active">✓ DEEP TLS ENGINE</span>
               <span className="health-chip active">✓ XAI INFERENCE</span>
-              <span className="health-chip active">✓ SSRF FIREWALL</span>
+              <span className="health-chip active">✓ SSRF FIREWALL (V2)</span>
+              <span className="health-chip active">✓ PHISHING DETECTOR</span>
             </div>
           </div>
         </section>

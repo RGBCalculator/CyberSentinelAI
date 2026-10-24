@@ -27,16 +27,16 @@ The platform is designed as a modular, microservices-ready architecture:
 - **Machine Learning**: Scikit-Learn, Random Forest, XGBoost, SHAP, LIME, TensorFlow, PyTorch, OpenCV, pyzbar.
 - **Deployment**: Docker, Docker Compose, GitHub, Render.
 
-## CyberSentinel AI SOC Capabilities
+## CyberSentinel AI SOC 2.0 Capabilities
 The unified Security Operations Center (SOC) dashboard includes:
-- **SOC Executive Overview**: Real-time risk scoring, posture distribution, scanner health, recent detections, and operational shortcuts.
-- **URL Threat Scanner**: Real-time multi-stage threat detection engine combining static heuristics, rule engines, live threat feeds, and AI analysis.
-- **Website Security & Trust Intelligence**: Deep SSL/TLS certificate analysis, domain provenance, DNS inspection, and calculated trust ratings.
-- **Threat Intelligence Hub**: Provider status matrix and live indicator lookup for VirusTotal, PhishTank, OpenPhish, and AbuseIPDB.
-- **Findings Explorer**: High-density findings management with severity filters, asset drilldowns, and remediation guidance.
-- **Explainable AI (XAI) Workbench**: Feature attribution waterfall charts, local feature weights, and calibrated probability scoring.
-- **Executive Security Reports**: Printable briefings and downloadable JSON audits.
-- **SSRF Safety Engine**: Protection against loopback, cloud metadata (AWS/GCP/Azure `169.254.169.254`), and RFC1918 subnets.
+- **SOC Executive Overview**: Real-time risk scoring with transparent mathematical formula explanation, animated KPI count-ups, scanner health, recent detections, and operational shortcuts.
+- **Deep SSL/TLS & Website Security**: Full X.509 certificate telemetry (SANs, SHA-256 fingerprint, days to expiration, key size/algorithm, TLS version, cipher suite, HTTP-to-HTTPS redirect test, verification error breakdowns).
+- **Curated BadSSL Test Cases**: Controlled test targets (`neverssl.com`, `expired.badssl.com`, `self-signed.badssl.com`, `wrong.host.badssl.com`, `untrusted-root.badssl.com`) labeled as *Certificate Test Cases — Not Confirmed Malicious*.
+- **SSRF Defense-in-Depth (V2)**: Comprehensive protection against dword/octal/hex IPs, link-local/cloud metadata (`169.254.169.254`, `fd00:ec2::254`), IPv4-mapped IPv6, restricted internal ports, redirect re-validation, and response size limits.
+- **Fake Login Page & Phishing Detection**: Sandboxed DOM analysis detecting brand impersonation (Microsoft, Google, Apple, etc.), cross-origin form submissions, raw IP destinations, and credential harvesting patterns (`POST /api/v1/scan/fake-login`).
+- **Manifest V3 Browser Extension**: Client sensor in `browser-extension/` allowing one-click active tab scanning with links back to the SOC dashboard.
+- **Threat Intelligence Hub**: In-memory bounded TTL caching (15 min) and honest connector status for VirusTotal, PhishTank, OpenPhish, and AbuseIPDB.
+- **Defensive API Hardening**: Automated security headers middleware (`X-Content-Type-Options`, `X-Frame-Options`, `Strict-Transport-Security`, `Permissions-Policy`), `/ready` MongoDB readiness probe, and `/health` liveness probe.
 
 ## Installation & Running Locally
 
@@ -46,6 +46,8 @@ docker compose up -d --build
 ```
 - Frontend: `http://localhost:3000`
 - Backend API & Swagger: `http://localhost:8000/docs`
+- Readiness Probe: `http://localhost:8000/ready`
+- Liveness Probe: `http://localhost:8000/health`
 - MongoDB: `localhost:27017`
 
 ### Option B: Local Development
@@ -61,8 +63,14 @@ npm install
 npm run dev
 ```
 
-## Running Unit Tests
+### Loading the Browser Extension (Chrome / Edge)
+1. Open `chrome://extensions/` in your browser.
+2. Enable **Developer mode** (top-right toggle).
+3. Click **Load unpacked** and select the folder `browser-extension/`.
+
+## Running the Automated Test Suite
 ```bash
-python -m pytest -o pythonpath="backend ." tests/unit -v
+$env:PYTHONPATH="backend;."; pytest tests/unit -v
 ```
+All 40 unit and regression tests validate SSRF protection, certificate extraction, brand impersonation detection, API security headers, and extension contracts.
 

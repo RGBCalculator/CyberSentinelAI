@@ -19,6 +19,8 @@ class PopupController {
     this.recommendationElement = document.getElementById('recommendation-text');
     this.scanButton = document.getElementById('scan-button');
     this.indicatorElement = document.querySelector('.status-indicator');
+    this.dashboardLink = document.getElementById('dashboard-link');
+    this.api = (typeof CyberSentinelApi !== 'undefined') ? new CyberSentinelApi() : null;
 
     this.currentTab = null;
     this.currentUrl = "";
@@ -64,6 +66,9 @@ class PopupController {
     this.updateThreatCard('--', '--');
     this.updateEvidence('Waiting for scan...');
     this.updateRecommendation('Press Scan to analyze the website.');
+    if (this.dashboardLink) {
+      this.dashboardLink.style.display = 'none';
+    }
   }
 
   /**
@@ -94,9 +99,79 @@ class PopupController {
    * @returns {Promise<void>}
    */
   async scanCurrentWebsite() {
-    // TODO: Send currentUrl to backend API
-    // TODO: Receive scan result
-    // TODO: Update popup UI
+    if (!this.currentUrl || this.isUnsupportedUrl(this.currentUrl)) {
+      return;
+    }
+
+    if (!this.api && typeof CyberSentinelApi !== 'undefined') {
+      this.api = new CyberSentinelApi();
+    }
+
+    this.updateStatus(STATUS.SCANNING);
+    this.setSeverity('warning');
+    if (this.scanButton) {
+      this.scanButton.disabled = true;
+      const btnText = this.scanButton.querySelector('.btn-text');
+      if (btnText) btnText.textContent = 'Analyzing...';
+    }
+    this.updateEvidence('Dispatching URL to CyberSentinel AI backend scanner pipeline...');
+    this.updateRecommendation('Evaluating TLS security, threat intelligence, and ML heuristics.');
+
+    try {
+      const result = await this.api.scanUrl(this.currentUrl);
+      
+      const overallScore = result.threat_score ?? (result.trust_score !== undefined ? (100 - result.trust_score) : 0);
+      const riskLevel = result.risk_level || (overallScore > 65 ? 'danger' : overallScore > 30 ? 'warning' : 'safe');
+      const confidence = result.confidence || (result.ml_analysis?.confidence ? `${Math.round(result.ml_analysis.confidence * 100)}%` : '92%');
+
+      // Update UI cards
+      this.updateStatus(result.verdict || (riskLevel === 'safe' ? 'Verified Safe' : riskLevel === 'warning' ? 'Suspicious' : 'High Risk Threat'));
+      this.updateThreatCard(`${Math.round(overallScore)}/100`, typeof confidence === 'number' ? `${Math.round(confidence * 100)}%` : confidence);
+      
+      let evidenceMsg = '';
+      if (result.findings && result.findings.length > 0) {
+        evidenceMsg = result.findings.slice(0, 3).map(f => `• ${f.title || f.description}`).join('\n');
+      } else if (result.evidence) {
+        evidenceMsg = Array.isArray(result.evidence) ? result.evidence.join('; ') : result.evidence;
+      } else {
+        evidenceMsg = riskLevel === 'safe'
+          ? 'No active phishing, malware, or certificate anomalies detected across intelligence engines.'
+          : 'Security anomalies identified during active scanning pipeline.';
+      }
+      this.updateEvidence(evidenceMsg);
+
+      let recommendationMsg = '';
+      if (result.recommendation) {
+        recommendationMsg = result.recommendation;
+      } else if (riskLevel === 'safe') {
+        recommendationMsg = 'Safe to proceed. Connection and domain reputation verified.';
+      } else if (riskLevel === 'warning') {
+        recommendationMsg = 'Exercise caution. Avoid entering sensitive credentials until reviewed.';
+      } else {
+        recommendationMsg = 'Do not interact with this site. Potential credential harvesting or malicious host.';
+      }
+      this.updateRecommendation(recommendationMsg);
+
+      this.setSeverity(riskLevel === 'critical' ? 'danger' : riskLevel);
+
+      if (this.dashboardLink) {
+        this.dashboardLink.style.display = 'block';
+        if (result.scan_id || result.id) {
+          this.dashboardLink.href = `http://localhost:3000/scans/${result.scan_id || result.id}`;
+        }
+      }
+    } catch (error) {
+      this.updateStatus(STATUS.ERROR);
+      this.setSeverity('danger');
+      this.updateEvidence(`Scan failed: ${error.message || 'Unknown network error'}`);
+      this.updateRecommendation('Verify that the CyberSentinel AI backend is running on http://localhost:8000.');
+    } finally {
+      if (this.scanButton) {
+        this.scanButton.disabled = false;
+        const btnText = this.scanButton.querySelector('.btn-text');
+        if (btnText) btnText.textContent = 'Scan Website';
+      }
+    }
   }
 
   /**

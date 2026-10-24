@@ -135,6 +135,7 @@ class ScanResult(BaseModel):
     Aggregates all findings, execution metadata, and computed overall risk.
     """
     scan_id: str = Field(..., description="Unique identifier for this scan instance")
+    target: Optional[str] = Field(default=None, description="Target URL or asset evaluated")
     status: ScanStatus = Field(default=ScanStatus.PENDING, description="Current status of the scan")
     
     # Aggregated metrics

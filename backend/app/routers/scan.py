@@ -1,6 +1,7 @@
 import logging
-from typing import Optional
+from typing import Optional, Any
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel, Field, model_validator
 
 from app.scanner import (
     ScanOrchestrator,
@@ -184,3 +185,41 @@ async def get_scan_by_id(scan_id: str):
     except Exception as err:
         logger.error("Error retrieving scan %s: %s", scan_id, err)
         raise HTTPException(status_code=500, detail="Database query failed.")
+
+
+class FakeLoginScanRequest(BaseModel):
+    target: Optional[str] = Field(default=None, description="Target website URL to inspect for fake login patterns")
+    url: Optional[str] = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def populate_target(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            if not data.get("target") and data.get("url"):
+                data["target"] = data["url"]
+        return data
+
+
+@router.post(
+    "/scan/fake-login",
+    summary="Fake Login Page & Phishing Detection",
+    description="Inspects target page structure for brand impersonation, cross-origin form submissions, and credential harvesting."
+)
+async def scan_fake_login_page(req: FakeLoginScanRequest):
+    """Safely analyzes target web page for phishing and fake login indicators."""
+    target = (req.target or req.url or "").strip()
+    if not target:
+        raise HTTPException(status_code=400, detail="Target URL cannot be empty.")
+
+    try:
+        from app.scanner.phishing import fake_login_detector
+        result = await fake_login_detector.analyze_url(target)
+        if not result.get("analyzed") and result.get("verdict") == "blocked":
+            raise HTTPException(status_code=400, detail=result.get("error"))
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Fake login inspection failed for %s: %s", target, e)
+        raise HTTPException(status_code=500, detail=f"Fake login inspection failed: {str(e)}")
+
