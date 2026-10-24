@@ -1,11 +1,11 @@
 {
-  "id": "39b9a0aa-c06a-4c29-8e33-acd887b3dd85",
+  "id": "c3e7e144-63b0-495d-8f1a-1ca0c9d4119d",
   "repository": {
     "name": "internal-finance-api",
     "url": "https://github.com/cybersentinel-demo/internal-finance-api",
     "commit_hash": "a1b2c3d4e5f67890",
     "branch": "main",
-    "analyzed_at": "2026-08-31T19:14:03.524271"
+    "analyzed_at": "2026-10-24T13:48:16.979933"
   },
   "overall_risk_score": 95,
   "total_findings": 2,
@@ -13,7 +13,7 @@
   "high_findings": 1,
   "findings": [
     {
-      "id": "407c2aaf-b93d-48f7-ac19-2a454ce529e6",
+      "id": "54d5db5d-4909-4d57-b130-63d107af56ab",
       "rule_id": "semgrep-python-sqli",
       "title": "Raw SQL Execution (SQLi)",
       "description": "User input is concatenated directly into a raw SQL query, allowing for SQL Injection.",
@@ -44,14 +44,14 @@
       },
       "investigation_plan": [
         {
-          "id": "8bb76417-af04-4fbe-8cd0-428a69583866",
+          "id": "9e5a032a-d9a0-4310-99b0-3dc36f11098d",
           "title": "Verify user input sanitization",
           "description": "Check if `user_id` in `api/routes.py` is cast to an Integer or sanitized before reaching the DB layer.",
           "status": "PENDING",
           "evidence_collected": null
         },
         {
-          "id": "33227eea-94e3-4582-9200-cca3f4daed25",
+          "id": "290ed88b-39d8-4ee1-8edb-2cc3c89dbb9b",
           "title": "Check WAF logs",
           "description": "Query recent access logs for `/api/v1/transactions` to see if SQLi payloads have been attempted.",
           "status": "PENDING",
@@ -63,7 +63,7 @@
       "remediation_recommendation": null
     },
     {
-      "id": "91f89d8b-de56-4e9c-9ab7-73e7983de006",
+      "id": "254f713e-51f8-4bc5-b1db-830718164bf8",
       "rule_id": "trufflehog-aws-key",
       "title": "Hardcoded AWS Access Key",
       "description": "An AWS access key is hardcoded in a configuration file.",
@@ -92,14 +92,14 @@
       },
       "investigation_plan": [
         {
-          "id": "282d606e-7fb3-4239-b44a-79ac634ad4c2",
+          "id": "a9f520fc-0976-407e-b15a-d9b3f741f7d8",
           "title": "Verify key status",
           "description": "Check AWS IAM to see if `AKIAIOSFODNN7EXAMPLE` is active.",
           "status": "PENDING",
           "evidence_collected": null
         },
         {
-          "id": "8237b398-ce1e-4150-99c8-561beb75d821",
+          "id": "64f08617-00e2-4a26-8d84-7510bc5c0b1f",
           "title": "Check CloudTrail",
           "description": "Review CloudTrail logs for unauthorized API calls using this key.",
           "status": "PENDING",

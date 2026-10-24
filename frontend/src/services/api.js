@@ -1,4 +1,5 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
+const rawBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
+const API_BASE_URL = rawBaseUrl.replace(/\/+$/, '');
 
 const getAuthHeaders = () => {
   const token = localStorage.getItem('access_token');
@@ -16,7 +17,7 @@ const getAuthHeaders = () => {
 const handleResponse = async (response) => {
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const error = data.detail || data.message || 'An error occurred';
+    const error = data.detail || data.message || `HTTP ${response.status}: ${response.statusText || 'Request failed'}`;
     throw new Error(error);
   }
   return data;
@@ -24,7 +25,8 @@ const handleResponse = async (response) => {
 
 export const api = {
   get: async (endpoint) => {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    const path = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+    const response = await fetch(`${API_BASE_URL}${path}`, {
       method: 'GET',
       headers: getAuthHeaders(),
     });
@@ -32,7 +34,8 @@ export const api = {
   },
 
   post: async (endpoint, payload) => {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    const path = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+    const response = await fetch(`${API_BASE_URL}${path}`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify(payload),

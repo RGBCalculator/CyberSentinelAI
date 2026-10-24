@@ -3,6 +3,7 @@ import { api } from '../services/api';
 import PostureView from './PostureView';
 
 const Dashboard = ({ user, onLogout }) => {
+  const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'posture'
   const [testResult, setTestResult] = useState(null);
   const [testError, setTestError] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -24,66 +25,104 @@ const Dashboard = ({ user, onLogout }) => {
   return (
     <div className="dashboard-container">
       <header className="dashboard-header">
-        <div>
+        <div className="header-brand">
           <h1 className="neon-text">CyberSentinel AI</h1>
           <p className="status-indicator">SYSTEM ONLINE</p>
         </div>
-        <button onClick={onLogout} className="btn-outline">DISCONNECT</button>
+
+        <nav className="dashboard-nav" aria-label="Main Navigation">
+          <button
+            type="button"
+            className={`nav-tab ${activeTab === 'overview' ? 'active' : ''}`}
+            onClick={() => setActiveTab('overview')}
+            id="nav-overview-btn"
+          >
+            OVERVIEW
+          </button>
+          <button
+            type="button"
+            className={`nav-tab ${activeTab === 'posture' ? 'active' : ''}`}
+            onClick={() => setActiveTab('posture')}
+            id="nav-posture-btn"
+          >
+            SECURITY POSTURE
+          </button>
+        </nav>
+
+        <div className="header-actions">
+          <button onClick={onLogout} className="btn-outline">DISCONNECT</button>
+        </div>
       </header>
 
-      <main className="dashboard-main">
-        <section className="panel user-info-panel">
-          <h3>OPERATOR PROFILE</h3>
-          <div className="info-grid">
-            <div className="info-item">
-              <span className="info-label">USERNAME:</span>
-              <span className="info-value">{user?.username}</span>
+      {activeTab === 'overview' && (
+        <main className="dashboard-main">
+          <section className="panel user-info-panel">
+            <h3>OPERATOR PROFILE</h3>
+            <div className="info-grid">
+              <div className="info-item">
+                <span className="info-label">USERNAME:</span>
+                <span className="info-value">{user?.username}</span>
+              </div>
+              <div className="info-item">
+                <span className="info-label">EMAIL:</span>
+                <span className="info-value">{user?.email}</span>
+              </div>
+              <div className="info-item">
+                <span className="info-label">ROLE:</span>
+                <span className="info-value role-badge">{user?.role}</span>
+              </div>
+              <div className="info-item">
+                <span className="info-label">STATUS:</span>
+                <span className="info-value">{user?.is_active ? 'ACTIVE' : 'INACTIVE'}</span>
+              </div>
             </div>
-            <div className="info-item">
-              <span className="info-label">EMAIL:</span>
-              <span className="info-value">{user?.email}</span>
-            </div>
-            <div className="info-item">
-              <span className="info-label">ROLE:</span>
-              <span className="info-value role-badge">{user?.role}</span>
-            </div>
-            <div className="info-item">
-              <span className="info-label">STATUS:</span>
-              <span className="info-value">{user?.is_active ? 'ACTIVE' : 'INACTIVE'}</span>
-            </div>
-          </div>
-        </section>
+          </section>
 
-        <section className="panel action-panel">
-          <h3>SYSTEM DIAGNOSTICS</h3>
-          <p>Verify connection to secured backend channels.</p>
-          <button 
-            onClick={handleTestProtected} 
-            disabled={loading} 
-            className="btn-primary mt-4"
-          >
-            {loading ? 'PINGING...' : 'TEST PROTECTED API'}
-          </button>
+          <section className="panel action-panel">
+            <h3>SYSTEM DIAGNOSTICS</h3>
+            <p>Verify connection to secured backend channels.</p>
+            <button
+              onClick={handleTestProtected}
+              disabled={loading}
+              className="btn-primary mt-4"
+            >
+              {loading ? 'PINGING...' : 'TEST PROTECTED API'}
+            </button>
 
-          {testResult && (
-            <div className="api-response success">
-              <h4>RESPONSE DETECTED:</h4>
-              <pre>{JSON.stringify(testResult, null, 2)}</pre>
-            </div>
-          )}
+            {testResult && (
+              <div className="api-response success">
+                <h4>RESPONSE DETECTED:</h4>
+                <pre>{JSON.stringify(testResult, null, 2)}</pre>
+              </div>
+            )}
 
-          {testError && (
-            <div className="api-response error">
-              <h4>ERROR DETECTED:</h4>
-              <pre>{testError}</pre>
-            </div>
-          )}
-        </section>
-      </main>
-      
-      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 40px 40px' }}>
-        <PostureView />
-      </div>
+            {testError && (
+              <div className="api-response error">
+                <h4>ERROR DETECTED:</h4>
+                <pre>{testError}</pre>
+              </div>
+            )}
+          </section>
+
+          <section className="panel posture-quick-panel">
+            <h3>SECURITY POSTURE</h3>
+            <p>Inspect repository-level code findings, blast radius graphs, and AI reasoning.</p>
+            <button
+              type="button"
+              onClick={() => setActiveTab('posture')}
+              className="btn-primary mt-4"
+            >
+              VIEW SECURITY POSTURE ➔
+            </button>
+          </section>
+        </main>
+      )}
+
+      {activeTab === 'posture' && (
+        <div className="posture-container">
+          <PostureView />
+        </div>
+      )}
     </div>
   );
 };
