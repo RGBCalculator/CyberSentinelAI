@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { api } from '../services/api';
 
-const Register = ({ switchToLogin }) => {
+const Register = ({ switchToLogin, switchToHome = null }) => {
   const [formData, setFormData] = useState({
     username: '',
     email: '',
@@ -56,6 +56,15 @@ const Register = ({ switchToLogin }) => {
   return (
     <div className="auth-container">
       <div className="auth-card">
+        {switchToHome && (
+          <button 
+            type="button" 
+            onClick={switchToHome}
+            className="auth-back-home-btn"
+          >
+            ← Back to Home
+          </button>
+        )}
         <div className="auth-header">
           <h2 className="neon-text">CyberSentinel AI</h2>
           <p>NEW NODE REGISTRATION</p>
@@ -119,7 +128,7 @@ const Register = ({ switchToLogin }) => {
             />
           </div>
           
-          <button type="submit" disabled={loading} className="btn-primary">
+          <button type="submit" disabled={loading} className="btn-primary-landing w-full">
             {loading ? 'PROCESSING...' : 'REGISTER NODE'}
           </button>
         </form>

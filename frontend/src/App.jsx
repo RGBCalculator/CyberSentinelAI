@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from 'react';
+import LandingPage from './components/LandingPage';
 import Login from './components/Login';
 import Register from './components/Register';
 import Dashboard from './components/Dashboard';
 import './styles/index.css';
 
 function App() {
-  const [currentView, setCurrentView] = useState('login'); // 'login', 'register', 'dashboard'
+  const [currentView, setCurrentView] = useState('landing'); // 'landing' | 'login' | 'register' | 'dashboard'
   const [user, setUser] = useState(null);
 
   useEffect(() => {
-    // Check for existing session
+    // Check for existing session in localStorage
     const token = localStorage.getItem('access_token');
     const storedUser = localStorage.getItem('user');
     
@@ -18,7 +19,6 @@ function App() {
         setUser(JSON.parse(storedUser));
         setCurrentView('dashboard');
       } catch (e) {
-        // Handle invalid JSON in storage
         handleLogout();
       }
     }
@@ -37,21 +37,42 @@ function App() {
     localStorage.removeItem('refresh_token');
     localStorage.removeItem('user');
     setUser(null);
-    setCurrentView('login');
+    setCurrentView('landing');
+  };
+
+  const handleLaunchDemo = () => {
+    if (!user) {
+      setUser({
+        username: 'SOC Demo Analyst',
+        email: 'analyst@cybersentinel.ai',
+        role: 'SOC_ANALYST'
+      });
+    }
+    setCurrentView('dashboard');
   };
 
   return (
     <div className="app-container">
+      {currentView === 'landing' && (
+        <LandingPage 
+          onGetStarted={() => setCurrentView('register')}
+          onLogin={() => setCurrentView('login')}
+          onSeeProduct={handleLaunchDemo}
+        />
+      )}
+
       {currentView === 'login' && (
         <Login 
           onLoginSuccess={handleLoginSuccess} 
           switchToRegister={() => setCurrentView('register')} 
+          switchToHome={() => setCurrentView('landing')}
         />
       )}
       
       {currentView === 'register' && (
         <Register 
           switchToLogin={() => setCurrentView('login')} 
+          switchToHome={() => setCurrentView('landing')}
         />
       )}
       
@@ -59,6 +80,7 @@ function App() {
         <Dashboard 
           user={user} 
           onLogout={handleLogout} 
+          onOpenLanding={() => setCurrentView('landing')}
         />
       )}
     </div>

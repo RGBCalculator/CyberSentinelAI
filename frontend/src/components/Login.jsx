@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { api } from '../services/api';
 
-const Login = ({ onLoginSuccess, switchToRegister }) => {
+const Login = ({ onLoginSuccess, switchToRegister, switchToHome = null }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -25,6 +25,15 @@ const Login = ({ onLoginSuccess, switchToRegister }) => {
   return (
     <div className="auth-container">
       <div className="auth-card">
+        {switchToHome && (
+          <button 
+            type="button" 
+            onClick={switchToHome}
+            className="auth-back-home-btn"
+          >
+            ← Back to Home
+          </button>
+        )}
         <div className="auth-header">
           <h2 className="neon-text">CyberSentinel AI</h2>
           <p>SYSTEM AUTHENTICATION</p>
@@ -55,7 +64,7 @@ const Login = ({ onLoginSuccess, switchToRegister }) => {
             />
           </div>
           
-          <button type="submit" disabled={loading} className="btn-primary">
+          <button type="submit" disabled={loading} className="btn-primary-landing w-full">
             {loading ? 'AUTHENTICATING...' : 'INITIALIZE LOGIN'}
           </button>
         </form>

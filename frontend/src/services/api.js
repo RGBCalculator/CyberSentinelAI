@@ -54,10 +54,20 @@ export const api = {
 
   // Unified SOC & Scanner
   getSocOverview: () => api.get('/v1/soc/overview'),
+  getFindings: (params = {}) => {
+    const searchParams = new URLSearchParams();
+    if (params.severity && params.severity !== 'ALL') searchParams.append('severity', params.severity);
+    if (params.category && params.category !== 'ALL') searchParams.append('category', params.category);
+    if (params.search) searchParams.append('search', params.search);
+    if (params.limit) searchParams.append('limit', params.limit);
+    if (params.skip) searchParams.append('skip', params.skip);
+    const qs = searchParams.toString();
+    return api.get(`/v1/findings${qs ? `?${qs}` : ''}`);
+  },
   scanUrl: (url, metadata = {}) => api.post('/v1/scan', { target: url, scan_type: 'url', metadata }),
   getRecentScans: (limit = 20, skip = 0, riskLevel = null) => {
     let url = `/v1/scans?limit=${limit}&skip=${skip}`;
-    if (riskLevel) url += `&risk_level=${riskLevel}`;
+    if (riskLevel && riskLevel !== 'ALL') url += `&risk_level=${riskLevel}`;
     return api.get(url);
   },
   getScanById: (id) => api.get(`/v1/scans/${id}`),

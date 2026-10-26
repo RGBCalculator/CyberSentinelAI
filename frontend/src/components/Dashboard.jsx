@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import SocOverview from './SocOverview';
 import UrlScannerView from './UrlScannerView';
 import WebsiteSecurityView from './WebsiteSecurityView';
+import ScanHistoryView from './ScanHistoryView';
 import ThreatIntelView from './ThreatIntelView';
 import FindingsExplorer from './FindingsExplorer';
 import ExplainableAiView from './ExplainableAiView';
@@ -9,8 +10,8 @@ import PostureView from './PostureView';
 import ReportsView from './ReportsView';
 import { api } from '../services/api';
 
-const Dashboard = ({ user, onLogout }) => {
-  const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'scanner' | 'website' | 'intel' | 'findings' | 'ai' | 'posture' | 'reports' | 'profile'
+const Dashboard = ({ user, onLogout, onOpenLanding = null }) => {
+  const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'scanner' | 'website' | 'history' | 'findings' | 'posture' | 'intel' | 'ai' | 'reports' | 'profile'
   const [globalSearch, setGlobalSearch] = useState('');
   const [selectedFindingId, setSelectedFindingId] = useState(null);
 
@@ -52,14 +53,15 @@ const Dashboard = ({ user, onLogout }) => {
   const navItems = [
     { section: 'OPERATIONS', items: [
       { id: 'overview', label: 'SOC OVERVIEW', icon: '📊' },
-      { id: 'scanner', label: 'URL THREAT SCANNER', icon: '🔍' },
-      { id: 'website', label: 'WEBSITE & SSL AUDIT', icon: '🌐' },
+      { id: 'scanner', label: 'URL SCANNER', icon: '🔍' },
+      { id: 'website', label: 'WEBSITE SECURITY', icon: '🌐' },
+      { id: 'history', label: 'SCAN HISTORY', icon: '🕒' },
       { id: 'intel', label: 'THREAT INTELLIGENCE', icon: '🛡️' },
     ]},
     { section: 'VULNERABILITY INTELLIGENCE', items: [
-      { id: 'findings', label: 'FINDINGS EXPLORER', icon: '📋' },
-      { id: 'ai', label: 'EXPLAINABLE AI (XAI)', icon: '🧠' },
-      { id: 'posture', label: 'CODE POSTURE (DEMO)', icon: '💻' },
+      { id: 'findings', label: 'FINDINGS', icon: '📋' },
+      { id: 'posture', label: 'SECURITY POSTURE', icon: '💻' },
+      { id: 'ai', label: 'EXPLAINABLE AI', icon: '🧠' },
     ]},
     { section: 'GOVERNANCE & SYSTEM', items: [
       { id: 'reports', label: 'SECURITY REPORTS', icon: '📑' },
@@ -103,7 +105,7 @@ const Dashboard = ({ user, onLogout }) => {
         <div className="sidebar-operator-card">
           <div className="operator-details">
             <span className="text-xs text-muted block font-mono">OPERATOR</span>
-            <span className="font-bold text-sm text-cyan truncate block">{user?.email || 'operator@sentinel'}</span>
+            <span className="font-bold text-sm text-cyan truncate block">{user?.email || 'analyst@cybersentinel.ai'}</span>
             <span className="role-badge mt-1">{user?.role || 'SOC_ANALYST'}</span>
           </div>
           <button onClick={onLogout} className="btn-outline btn-xs w-full mt-3" title="Log out of session">
@@ -135,6 +137,16 @@ const Dashboard = ({ user, onLogout }) => {
           </form>
 
           <div className="topbar-actions">
+            {onOpenLanding && (
+              <button 
+                type="button" 
+                onClick={onOpenLanding}
+                className="btn-outline-landing btn-sm"
+                title="View public product landing page"
+              >
+                🌐 Public Landing
+              </button>
+            )}
             <span className="soc-status-badge">
               <span className="pulse-dot"></span> THREAT SHIELD ACTIVE
             </span>
@@ -151,11 +163,19 @@ const Dashboard = ({ user, onLogout }) => {
           )}
 
           {activeTab === 'scanner' && (
-            <UrlScannerView />
+            <UrlScannerView 
+              onViewFindings={(scanId) => handleNavigate('findings')} 
+            />
           )}
 
           {activeTab === 'website' && (
             <WebsiteSecurityView />
+          )}
+
+          {activeTab === 'history' && (
+            <ScanHistoryView 
+              onSelectScan={(scanId) => handleNavigate('scanner')} 
+            />
           )}
 
           {activeTab === 'intel' && (
@@ -166,14 +186,14 @@ const Dashboard = ({ user, onLogout }) => {
             <FindingsExplorer initialFindingId={selectedFindingId} />
           )}
 
-          {activeTab === 'ai' && (
-            <ExplainableAiView />
-          )}
-
           {activeTab === 'posture' && (
             <div className="posture-container">
               <PostureView />
             </div>
+          )}
+
+          {activeTab === 'ai' && (
+            <ExplainableAiView />
           )}
 
           {activeTab === 'reports' && (
@@ -195,19 +215,19 @@ const Dashboard = ({ user, onLogout }) => {
                   <div className="info-grid">
                     <div className="info-item">
                       <span className="info-label">USERNAME:</span>
-                      <span className="info-value font-mono">{user?.username}</span>
+                      <span className="info-value font-mono">{user?.username || 'Operator'}</span>
                     </div>
                     <div className="info-item">
                       <span className="info-label">EMAIL:</span>
-                      <span className="info-value font-mono">{user?.email}</span>
+                      <span className="info-value font-mono">{user?.email || 'analyst@cybersentinel.ai'}</span>
                     </div>
                     <div className="info-item">
                       <span className="info-label">ROLE:</span>
-                      <span className="info-value role-badge">{user?.role}</span>
+                      <span className="info-value role-badge">{user?.role || 'SOC_ANALYST'}</span>
                     </div>
                     <div className="info-item">
                       <span className="info-label">ACCOUNT STATUS:</span>
-                      <span className="info-value">{user?.is_active ? 'ACTIVE' : 'INACTIVE'}</span>
+                      <span className="info-value">ACTIVE</span>
                     </div>
                   </div>
                 </section>
@@ -218,7 +238,7 @@ const Dashboard = ({ user, onLogout }) => {
                   <button 
                     onClick={handleTestProtected} 
                     disabled={loadingDiagnostics} 
-                    className="btn-primary mt-4"
+                    className="btn-primary-landing mt-4"
                   >
                     {loadingDiagnostics ? 'PINGING CHANNEL...' : 'TEST PROTECTED API'}
                   </button>

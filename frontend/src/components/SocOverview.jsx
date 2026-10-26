@@ -40,7 +40,7 @@ const SocOverview = ({ onNavigate }) => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [timeRange, setTimeRange] = useState('24h');
+  const [timeRange, setTimeRange] = useState('7d');
   const [showFormulaExplanation, setShowFormulaExplanation] = useState(false);
 
   const fetchOverview = async () => {
@@ -62,18 +62,49 @@ const SocOverview = ({ onNavigate }) => {
 
   const posture = data?.security_posture || {};
   const scansSummary = data?.scans_summary || {};
+  const statusCounts = scansSummary.status_counts || {};
   const threatIntel = data?.threat_intelligence || {};
-  const findings = data?.findings_overview?.findings || [];
+  const findingsOverview = data?.findings_overview || {};
+  const findingsList = findingsOverview.findings || [];
   const providers = threatIntel.providers || {};
+  const recentScans = scansSummary.recent_scans || [];
+  const activity7d = scansSummary.activity_7d || [
+    { day: 'Mon', count: 0 },
+    { day: 'Tue', count: 0 },
+    { day: 'Wed', count: 0 },
+    { day: 'Thu', count: 0 },
+    { day: 'Fri', count: 0 },
+    { day: 'Sat', count: 0 },
+    { day: 'Sun', count: 0 }
+  ];
 
-  const animatedRiskScore = useCountUp(posture.overall_risk_score ?? 0, 1000);
-  const animatedTotalFindings = useCountUp(posture.total_findings ?? 0, 800);
-  const animatedTotalScans = useCountUp(scansSummary.total_scans ?? 0, 800);
+  // Animated KPI values
+  const totalScans = scansSummary.total_scans ?? 0;
+  const completedScans = statusCounts.completed ?? Math.max(0, totalScans - (statusCounts.partial ?? 0) - (statusCounts.failed ?? 0));
+  const partialScans = statusCounts.partial ?? 0;
+  const failedScans = statusCounts.failed ?? 0;
+
+  const animTotal = useCountUp(totalScans, 800);
+  const animCompleted = useCountUp(completedScans, 800);
+  const animPartial = useCountUp(partialScans, 800);
+  const animFailed = useCountUp(failedScans, 800);
+
+  // Severity counts
+  const sevCounts = findingsOverview.by_severity || {
+    critical: findingsList.filter(f => (f.severity || '').toLowerCase() === 'critical').length,
+    high: findingsList.filter(f => (f.severity || '').toLowerCase() === 'high').length,
+    medium: findingsList.filter(f => (f.severity || '').toLowerCase() === 'medium').length,
+    low: findingsList.filter(f => ['low', 'safe', 'info'].includes((f.severity || '').toLowerCase())).length,
+  };
+  const totalFindings = sevCounts.critical + sevCounts.high + sevCounts.medium + sevCounts.low;
+
+  // Max value for 7d bar chart scaling
+  const maxActivity = Math.max(...activity7d.map(d => d.count), 5);
 
   if (loading) {
     return (
       <div className="soc-view-loading panel">
-        <p className="neon-text blink">INITIALIZING SOC TELEMETRY...</p>
+        <p className="neon-text blink">SYNCHRONIZING SOC TELEMETRY...</p>
         <p className="text-muted mt-4">Synthesizing threat intelligence, repository posture, and scanner telemetry...</p>
       </div>
     );
@@ -93,11 +124,11 @@ const SocOverview = ({ onNavigate }) => {
 
   return (
     <div className="soc-overview">
-      {/* Top Bar Controls */}
+      {/* Top Header Section (matches reference image: Page title and subtitle) */}
       <div className="soc-toolbar">
         <div>
-          <h2 className="soc-title">SECURITY OPERATIONS COMMAND CENTER</h2>
-          <p className="text-muted">Real-time threat monitoring, posture analytics, and automated detection engines.</p>
+          <h1 className="soc-page-title">SOC Overview</h1>
+          <p className="soc-page-subtitle">A summary of your security scans and findings.</p>
         </div>
         <div className="soc-controls">
           <div className="time-range-selector">
@@ -113,232 +144,261 @@ const SocOverview = ({ onNavigate }) => {
             ))}
           </div>
           <button onClick={fetchOverview} className="btn-outline refresh-btn" title="Refresh Telemetry">
-            ↻ REFRESH
+            ↻ Refresh
           </button>
         </div>
       </div>
 
-      {/* Demo Notice Banner */}
-      <div className="demo-notice-banner mt-4">
-        <span className="demo-badge">LIVE INTEGRATION + DEMO POSTURE</span>
-        <span className="demo-text">
-          Live URL scanning, TLS inspection, and threat intelligence caching are active. Code security posture data is sourced from demo repository fixture (`internal-finance-api`).
-        </span>
-      </div>
-
-      {/* KPI Metrics Grid with Animated Counters */}
-      <div className="metrics-grid mt-4">
-        <div className="metric-box risk-metric">
-          <div className="flex justify-between items-center">
-            <span className="metric-label">OVERALL POSTURE RISK</span>
-            <button 
-              type="button" 
-              className="text-muted text-xs hover:text-cyan"
-              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
-              onClick={() => setShowFormulaExplanation(!showFormulaExplanation)}
-              title="Explain Calculation"
-            >
-              ℹ️ FORMULA
-            </button>
+      {/* Row of 4 KPI Cards (matches reference image: Total Scans, Completed, Partial, Failed) */}
+      <div className="kpi-cards-grid mt-4">
+        {/* KPI 1: Total Scans */}
+        <div className="soc-kpi-card">
+          <div className="kpi-top">
+            <span className="kpi-title">Total Scans</span>
+            <span className="kpi-icon">📊</span>
           </div>
-          <span className={`metric-value ${animatedRiskScore > 80 ? 'critical' : animatedRiskScore > 50 ? 'warning' : 'safe'}`}>
-            {animatedRiskScore}
-            <span className="metric-sub"> / 100</span>
-          </span>
-          <span className="metric-footnote text-muted">Demo Repository Posture</span>
+          <div className="kpi-number">{animTotal}</div>
+          <div className="kpi-footnote text-muted">
+            Logged across active targets
+          </div>
         </div>
 
-        <div className="metric-box">
-          <span className="metric-label">TOTAL FINDINGS</span>
-          <span className="metric-value">{animatedTotalFindings}</span>
-          <span className="metric-breakdown">
-            <span className="sev-chip critical">{posture.critical_findings ?? 0} CRIT</span>
-            <span className="sev-chip warning">{posture.high_findings ?? 0} HIGH</span>
-          </span>
+        {/* KPI 2: Completed */}
+        <div className="soc-kpi-card">
+          <div className="kpi-top">
+            <span className="kpi-title">Completed</span>
+            <span className="kpi-icon text-success">✓</span>
+          </div>
+          <div className="kpi-number text-success">{animCompleted}</div>
+          <div className="kpi-footnote text-success">
+            {totalScans > 0 ? `${Math.round((completedScans / totalScans) * 100)}% execution rate` : '100% operational'}
+          </div>
         </div>
 
-        <div className="metric-box">
-          <span className="metric-label">HISTORICAL SCANS</span>
-          <span className="metric-value">{animatedTotalScans}</span>
-          <span className="metric-footnote text-muted">Logged in MongoDB</span>
+        {/* KPI 3: Partial */}
+        <div className="soc-kpi-card">
+          <div className="kpi-top">
+            <span className="kpi-title">Partial</span>
+            <span className="kpi-icon text-warning">⚠️</span>
+          </div>
+          <div className="kpi-number text-warning">{animPartial}</div>
+          <div className="kpi-footnote text-muted">
+            Warning states or timeouts
+          </div>
         </div>
 
-        <div className="metric-box">
-          <span className="metric-label">THREAT INTEL ENGINES</span>
-          <span className="metric-value text-accent">
-            {threatIntel.active_count ?? 0} <span className="metric-sub">/ {threatIntel.total_count ?? 4}</span>
-          </span>
-          <span className="metric-footnote text-muted">Configured Connectors</span>
+        {/* KPI 4: Failed */}
+        <div className="soc-kpi-card">
+          <div className="kpi-top">
+            <span className="kpi-title">Failed</span>
+            <span className="kpi-icon text-error">✕</span>
+          </div>
+          <div className="kpi-number text-error">{animFailed}</div>
+          <div className="kpi-footnote text-muted">
+            Blocked by firewall or offline
+          </div>
         </div>
       </div>
 
-      {/* Transparent Calculation Explanation Panel */}
-      {showFormulaExplanation && (
-        <section className="panel mt-4" style={{ borderLeft: '4px solid #00f0ff' }}>
+      {/* Middle Grid: Findings by Severity (Donut) & Scan Activity (Bar Chart) */}
+      <div className="soc-charts-grid mt-4">
+        {/* Findings by Severity Card */}
+        <div className="panel chart-panel">
           <div className="panel-header-row">
-            <h4>SECURITY POSTURE SCORE CALCULATION BREAKDOWN</h4>
+            <div>
+              <h3 className="chart-panel-title">Findings by Severity</h3>
+              <p className="text-muted text-xs">Distribution of detected issues across all scanned targets</p>
+            </div>
             <button 
               type="button" 
-              className="btn-outline btn-xs"
-              onClick={() => setShowFormulaExplanation(false)}
+              className="btn-link text-xs text-cyan"
+              onClick={() => onNavigate('findings')}
             >
-              ✕ CLOSE
+              View all ➔
             </button>
           </div>
-          <p className="text-muted text-sm mb-3">
-            The overall posture risk score is deterministically derived from static and dynamic security assessments:
-          </p>
-          <div className="info-grid text-sm">
-            <div className="info-item">
-              <span className="info-label">SEVERITY WEIGHTS:</span>
-              <span className="info-value">Critical Findings = 30 pts each | High = 15 pts | Medium = 5 pts | Low = 1 pt</span>
-            </div>
-            <div className="info-item">
-              <span className="info-label">EXPOSURE MULTIPLIER:</span>
-              <span className="info-value">Publicly exposed endpoints & credential handling escalate base finding severity.</span>
-            </div>
-            <div className="info-item">
-              <span className="info-label">NORMALIZATION:</span>
-              <span className="info-value">Capped between 0 (Zero Risk) and 100 (Immediate Critical Compromise).</span>
-            </div>
-            <div className="info-item">
-              <span className="info-label">HONEST LIMITATION:</span>
-              <span className="info-value">Unscanned repos or missing threat intelligence keys do not imply low risk.</span>
-            </div>
-          </div>
-        </section>
-      )}
 
-      {/* Quick Action Station */}
-      <div className="quick-actions-bar mt-4">
-        <span className="quick-actions-title">OPERATIONAL DISPATCH:</span>
-        <button onClick={() => onNavigate('scanner')} className="btn-action">
-          <span>🔍</span> RUN URL SCAN
-        </button>
-        <button onClick={() => onNavigate('website')} className="btn-action">
-          <span>🌐</span> AUDIT WEBSITE / SSL
-        </button>
-        <button onClick={() => onNavigate('posture')} className="btn-action">
-          <span>🛡️</span> CODE SECURITY POSTURE
-        </button>
-        <button onClick={() => onNavigate('reports')} className="btn-action">
-          <span>📑</span> EXPORT SOC REPORT
-        </button>
-      </div>
+          <div className="donut-chart-container mt-4">
+            {/* Clean SVG Donut Chart with exact colors */}
+            <div className="svg-donut-wrapper">
+              <svg viewBox="0 0 100 100" className="donut-svg">
+                {totalFindings === 0 ? (
+                  <circle cx="50" cy="50" r="38" fill="transparent" stroke="#2B3946" strokeWidth="12" />
+                ) : (
+                  (() => {
+                    const radius = 38;
+                    const circumference = 2 * Math.PI * radius;
+                    let accumulatedPercent = 0;
+                    const segments = [
+                      { count: sevCounts.critical, color: '#EF4444', label: 'Critical' },
+                      { count: sevCounts.high, color: '#F97316', label: 'High' },
+                      { count: sevCounts.medium, color: '#F59E0B', label: 'Medium' },
+                      { count: sevCounts.low, color: '#43D9D0', label: 'Low' },
+                    ];
 
-      {/* Main Grid: Telemetry Feeds & Status */}
-      <div className="soc-grid mt-4">
-        {/* Left Column: Threat Intelligence Matrix & Health */}
-        <section className="panel">
-          <h3>INTELLIGENCE CONNECTOR HEALTH</h3>
-          <p className="text-muted mb-4">Multi-source reputation feeds and scanner subsystem statuses.</p>
-          
-          <div className="providers-list">
-            {Object.entries(providers).map(([key, provider]) => (
-              <div key={key} className="provider-status-row">
-                <div className="provider-info">
-                  <span className="provider-name">{provider.name}</span>
-                  <span className="provider-desc">{provider.description}</span>
-                  {!provider.configured && provider.setup_instructions && (
-                    <span className="text-muted text-xs block font-mono mt-1">
-                      Setup: {provider.setup_instructions}
-                    </span>
-                  )}
-                </div>
-                <div className="provider-badge-col">
-                  <span className={`status-pill ${provider.configured ? 'ready' : 'unconfigured'}`}>
-                    {provider.configured ? '● CONNECTED' : '○ NO API KEY'}
-                  </span>
-                </div>
+                    return segments.map((seg, idx) => {
+                      if (seg.count === 0) return null;
+                      const percent = seg.count / totalFindings;
+                      const strokeDasharray = `${percent * circumference} ${circumference}`;
+                      const strokeDashoffset = -(accumulatedPercent * circumference);
+                      accumulatedPercent += percent;
+
+                      return (
+                        <circle
+                          key={idx}
+                          cx="50"
+                          cy="50"
+                          r={radius}
+                          fill="transparent"
+                          stroke={seg.color}
+                          strokeWidth="12"
+                          strokeDasharray={strokeDasharray}
+                          strokeDashoffset={strokeDashoffset}
+                          transform="rotate(-90 50 50)"
+                        />
+                      );
+                    });
+                  })()
+                )}
+              </svg>
+              <div className="donut-center-text">
+                <span className="donut-total-num">{totalFindings}</span>
+                <span className="donut-total-label">Findings</span>
               </div>
-            ))}
-          </div>
+            </div>
 
-          <div className="subsystem-health mt-4">
-            <span className="subsystem-title">SCANNER ENGINE STATUS:</span>
-            <div className="health-chips">
-              <span className="health-chip active">✓ URL SCANNER</span>
-              <span className="health-chip active">✓ DEEP TLS ENGINE</span>
-              <span className="health-chip active">✓ XAI INFERENCE</span>
-              <span className="health-chip active">✓ SSRF FIREWALL (V2)</span>
-              <span className="health-chip active">✓ PHISHING DETECTOR</span>
+            {/* Severity Legend */}
+            <div className="severity-legend-list">
+              <div className="legend-row">
+                <span className="legend-dot" style={{ backgroundColor: '#EF4444' }}></span>
+                <span className="legend-name">Critical</span>
+                <span className="legend-count font-mono font-bold text-error">{sevCounts.critical}</span>
+              </div>
+              <div className="legend-row">
+                <span className="legend-dot" style={{ backgroundColor: '#F97316' }}></span>
+                <span className="legend-name">High</span>
+                <span className="legend-count font-mono font-bold" style={{ color: '#F97316' }}>{sevCounts.high}</span>
+              </div>
+              <div className="legend-row">
+                <span className="legend-dot" style={{ backgroundColor: '#F59E0B' }}></span>
+                <span className="legend-name">Medium</span>
+                <span className="legend-count font-mono font-bold text-warning">{sevCounts.medium}</span>
+              </div>
+              <div className="legend-row">
+                <span className="legend-dot" style={{ backgroundColor: '#43D9D0' }}></span>
+                <span className="legend-name">Low</span>
+                <span className="legend-count font-mono font-bold text-cyan">{sevCounts.low}</span>
+              </div>
             </div>
           </div>
-        </section>
+        </div>
 
-        {/* Right Column: Priority Vulnerability Queue */}
-        <section className="panel">
+        {/* Scan Activity Card (7-day Bar Chart) */}
+        <div className="panel chart-panel">
           <div className="panel-header-row">
-            <h3>CRITICAL FINDINGS QUEUE</h3>
-            <button onClick={() => onNavigate('findings')} className="btn-link">
-              VIEW ALL FINDINGS ➔
-            </button>
+            <div>
+              <h3 className="chart-panel-title">Scan Activity</h3>
+              <p className="text-muted text-xs">Total scans executed over the last 7 days</p>
+            </div>
+            <span className="text-muted text-xs font-mono">Real-time DB Counts</span>
           </div>
-          <p className="text-muted mb-4">Highest-severity security findings requiring immediate operator review.</p>
 
-          <div className="findings-stream">
-            {findings.length === 0 ? (
-              <div className="empty-stream text-muted">No high-risk findings logged. System operating within secure parameters.</div>
-            ) : (
-              findings.slice(0, 4).map(f => (
-                <div key={f.id} className="finding-stream-card" onClick={() => onNavigate('findings', f.id)}>
-                  <div className="stream-card-top">
-                    <span className={`severity-badge ${f.severity}`}>{f.severity.toUpperCase()}</span>
-                    <span className="stream-source">{f.source}</span>
-                    <span className="finding-risk">RISK: {f.risk_score}</span>
+          <div className="activity-chart-container mt-4">
+            <div className="activity-bars-wrapper">
+              {activity7d.map((dayItem, idx) => {
+                const heightPercent = maxActivity > 0 ? Math.max((dayItem.count / maxActivity) * 100, 6) : 6;
+                return (
+                  <div key={idx} className="activity-bar-col">
+                    <span className="bar-count-label font-mono text-xs text-muted">
+                      {dayItem.count > 0 ? dayItem.count : ''}
+                    </span>
+                    <div className="activity-bar-track">
+                      <div 
+                        className="activity-bar-fill" 
+                        style={{ height: `${heightPercent}%` }}
+                        title={`${dayItem.count} scans on ${dayItem.date || dayItem.day}`}
+                      ></div>
+                    </div>
+                    <span className="activity-bar-day font-mono text-xs">{dayItem.day}</span>
                   </div>
-                  <h4 className="stream-title">{f.title}</h4>
-                  <p className="stream-desc">{f.description}</p>
-                  <div className="stream-footer">
-                    <span className="stream-target text-muted">TARGET: {f.target}</span>
-                    <span className="action-text">INSPECT ➔</span>
-                  </div>
-                </div>
-              ))
-            )}
+                );
+              })}
+            </div>
           </div>
-        </section>
+        </div>
       </div>
 
-      {/* Bottom Section: Recent Live Scans Feed */}
+      {/* Bottom Section: Recent Scans Table (matches reference image) */}
       <section className="panel mt-4">
         <div className="panel-header-row">
-          <h3>RECENT URL & ASSET SCANS</h3>
-          <button onClick={() => onNavigate('scanner')} className="btn-link">
-            LAUNCH SCANNER ➔
-          </button>
+          <div>
+            <h3>Recent Scans</h3>
+            <p className="text-muted text-xs">Real-time log of the latest targets submitted to the scanner</p>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => onNavigate('history')} className="btn-outline btn-xs">
+              View full history ➔
+            </button>
+            <button onClick={() => onNavigate('scanner')} className="btn-primary btn-xs">
+              + New Scan
+            </button>
+          </div>
         </div>
         
-        {scansSummary.recent_scans && scansSummary.recent_scans.length > 0 ? (
-          <div className="table-responsive mt-4">
+        {recentScans.length > 0 ? (
+          <div className="table-responsive mt-3">
             <table className="soc-table">
               <thead>
                 <tr>
-                  <th>SCAN ID</th>
-                  <th>TARGET</th>
-                  <th>TYPE</th>
-                  <th>RISK LEVEL</th>
-                  <th>SCORE</th>
-                  <th>FINDINGS</th>
-                  <th>TIMESTAMP</th>
+                  <th>Target</th>
+                  <th>Status</th>
+                  <th>Risk</th>
+                  <th>Findings</th>
+                  <th>Scanned At</th>
+                  <th>Action</th>
                 </tr>
               </thead>
               <tbody>
-                {scansSummary.recent_scans.map(scan => (
-                  <tr key={scan.scan_id}>
-                    <td className="font-mono text-muted">{scan.scan_id.slice(0, 8)}...</td>
-                    <td className="font-mono text-cyan">{scan.target}</td>
-                    <td>{scan.scan_type.toUpperCase()}</td>
-                    <td>
-                      <span className={`severity-badge ${scan.risk_level.toLowerCase()}`}>
-                        {scan.risk_level.toUpperCase()}
-                      </span>
-                    </td>
-                    <td className="font-mono font-bold">{scan.risk_score}</td>
-                    <td>{scan.findings_count} detected</td>
-                    <td className="text-muted">{new Date(scan.created_at).toLocaleTimeString()}</td>
-                  </tr>
-                ))}
+                {recentScans.map(scan => {
+                  const riskLvl = (scan.risk_level || 'safe').toLowerCase();
+                  const scanStatus = (scan.status || 'completed').toLowerCase();
+                  return (
+                    <tr key={scan.scan_id}>
+                      <td className="font-mono text-cyan truncate max-w-sm" title={scan.target}>
+                        {scan.target}
+                      </td>
+                      <td>
+                        <span className={`status-pill ${scanStatus === 'completed' ? 'ready' : scanStatus === 'partial' ? 'warning' : 'critical'}`}>
+                          {scanStatus.toUpperCase()}
+                        </span>
+                      </td>
+                      <td>
+                        <span className={`severity-badge ${riskLvl}`}>
+                          {riskLvl.toUpperCase()}
+                        </span>
+                      </td>
+                      <td>
+                        {scan.findings_count > 0 ? (
+                          <span className="text-warning font-semibold">{scan.findings_count} detected</span>
+                        ) : (
+                          <span className="text-success text-xs">Clean</span>
+                        )}
+                      </td>
+                      <td className="text-muted text-xs">
+                        {scan.created_at ? new Date(scan.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Recent'}
+                      </td>
+                      <td>
+                        <button 
+                          type="button" 
+                          className="btn-outline btn-xs"
+                          onClick={() => onNavigate('findings', scan.scan_id)}
+                        >
+                          Inspect
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -351,6 +411,18 @@ const SocOverview = ({ onNavigate }) => {
           </div>
         )}
       </section>
+
+      {/* Tactical Subsystem Status Strip */}
+      <div className="tactical-status-strip mt-4">
+        <span className="strip-title">CONNECTED DETECTORS:</span>
+        <div className="strip-chips">
+          <span className="strip-chip active">✓ URL Scanner</span>
+          <span className="strip-chip active">✓ Deep TLS Engine</span>
+          <span className="strip-chip active">✓ Threat Intelligence</span>
+          <span className="strip-chip active">✓ Heuristic Phishing Guard</span>
+          <span className="strip-chip active">✓ SSRF Firewall V2</span>
+        </div>
+      </div>
     </div>
   );
 };

@@ -12,7 +12,7 @@ import logging
 from typing import Optional, Dict, Any, List
 from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel, Field
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from app.scanner.trust.engine import TrustEngine
 from app.services.threat_intel import threat_intel_service
@@ -113,23 +113,47 @@ async def get_soc_overview():
 
     # 2. Query MongoDB Scan History
     total_scans = 0
+    status_counts = {"completed": 0, "partial": 0, "failed": 0}
     risk_distribution = {"critical": 0, "high": 0, "medium": 0, "low": 0, "safe": 0}
+    activity_7d = []
     recent_scans = []
     
     try:
         from app.models.scan import ScanRecord
         total_scans = await ScanRecord.count()
-        recent_records = await ScanRecord.find().sort("-created_at").limit(5).to_list()
+        recent_records = await ScanRecord.find().sort("-created_at").limit(10).to_list()
         
-        # Aggregate distribution
+        # Status counts
+        status_counts["completed"] = await ScanRecord.find(ScanRecord.status == "completed").count()
+        status_counts["partial"] = await ScanRecord.find(ScanRecord.status == "partial").count()
+        status_counts["failed"] = await ScanRecord.find(ScanRecord.status == "failed").count()
+
+        # Aggregate risk distribution
         for level in risk_distribution.keys():
             risk_distribution[level] = await ScanRecord.find(ScanRecord.risk_level == level).count()
+
+        # Calculate 7-day scan activity
+        now = datetime.now(timezone.utc)
+        for i in range(6, -1, -1):
+            day_date = (now - timedelta(days=i)).date()
+            day_start = datetime(day_date.year, day_date.month, day_date.day, tzinfo=timezone.utc)
+            day_end = day_start + timedelta(days=1)
+            count = await ScanRecord.find(
+                ScanRecord.created_at >= day_start,
+                ScanRecord.created_at < day_end
+            ).count()
+            activity_7d.append({
+                "date": day_date.isoformat(),
+                "day": day_date.strftime("%a"),
+                "count": count
+            })
 
         recent_scans = [
             {
                 "scan_id": r.scan_id,
                 "target": r.target,
                 "scan_type": r.scan_type,
+                "status": getattr(r, "status", "completed"),
                 "risk_level": r.risk_level,
                 "risk_score": r.risk_score,
                 "findings_count": r.findings_count,
@@ -139,6 +163,11 @@ async def get_soc_overview():
         ]
     except Exception as err:
         logger.debug("MongoDB scans unavailable (fallback to zeroed): %s", err)
+        # Fallback empty 7-day array
+        now = datetime.now(timezone.utc)
+        for i in range(6, -1, -1):
+            d = (now - timedelta(days=i)).date()
+            activity_7d.append({"date": d.isoformat(), "day": d.strftime("%a"), "count": 0})
 
     # 3. Provider Statuses
     ti_status = threat_intel_service.get_providers_status()
@@ -154,26 +183,37 @@ async def get_soc_overview():
                 "severity": f.get("severity", "HIGH").lower(),
                 "risk_score": f.get("risk_score", 85),
                 "target": f.get("location", {}).get("file_path", "internal-finance-api"),
-                "category": "Code Vulnerability",
+                "category": "Static Code Analysis",
                 "is_demo": True,
-                "description": f.get("description")
+                "description": f.get("description"),
+                "detected_at": datetime.now(timezone.utc).isoformat()
             })
 
-    # Add any high-risk scan findings
+    # Add scan findings from recent scans
     if recent_scans:
         for s in recent_scans:
-            if s.get("risk_level") in ["critical", "high"]:
+            if s.get("findings_count", 0) > 0:
                 combined_findings.append({
-                    "id": s.get("scan_id"),
+                    "id": f"scan-{s.get('scan_id')}",
                     "source": "Live URL Scanner",
                     "title": f"Threat Detected on {s.get('target')}",
-                    "severity": s.get("risk_level"),
-                    "risk_score": s.get("risk_score"),
+                    "severity": s.get("risk_level", "medium").lower(),
+                    "risk_score": s.get("risk_score", 45),
                     "target": s.get("target"),
-                    "category": "URL Threat",
+                    "category": "URL & Web Threat",
                     "is_demo": False,
-                    "description": f"URL scan completed with risk score {s.get('risk_score')}"
+                    "description": f"URL scan completed with risk score {s.get('risk_score')} and {s.get('findings_count')} anomalies detected.",
+                    "detected_at": s.get("created_at")
                 })
+
+    # Calculate findings by severity distribution
+    findings_by_severity = {"critical": 0, "high": 0, "medium": 0, "low": 0}
+    for f in combined_findings:
+        sev = f.get("severity", "medium").lower()
+        if sev in findings_by_severity:
+            findings_by_severity[sev] += 1
+        elif sev in ["safe", "info", "informational"]:
+            findings_by_severity["low"] += 1
 
     return {
         "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -187,7 +227,9 @@ async def get_soc_overview():
         },
         "scans_summary": {
             "total_scans": total_scans,
+            "status_counts": status_counts,
             "risk_distribution": risk_distribution,
+            "activity_7d": activity_7d,
             "recent_scans": recent_scans
         },
         "threat_intelligence": {
@@ -197,6 +239,7 @@ async def get_soc_overview():
         },
         "findings_overview": {
             "total": len(combined_findings),
+            "by_severity": findings_by_severity,
             "findings": combined_findings
         },
         "scanner_health": {
@@ -206,6 +249,51 @@ async def get_soc_overview():
             "threat_intel_hub": "operational"
         }
     }
+
+
+@router.get(
+    "/findings",
+    summary="Query Unified Security Findings",
+    description="Retrieves security findings from code posture and scan history with search and filters."
+)
+async def get_all_findings(
+    severity: Optional[str] = Query(None, description="Severity filter: critical, high, medium, low"),
+    category: Optional[str] = Query(None, description="Category filter"),
+    search: Optional[str] = Query(None, description="Search term for title, description, target"),
+    limit: int = Query(50, ge=1, le=100),
+    skip: int = Query(0, ge=0)
+):
+    """Retrieves all aggregated findings across code posture and scan records."""
+    overview = await get_soc_overview()
+    all_findings = overview.get("findings_overview", {}).get("findings", [])
+
+    filtered = []
+    for f in all_findings:
+        if severity and severity.upper() != "ALL" and f.get("severity", "").upper() != severity.upper():
+            continue
+        if category and category.upper() != "ALL" and f.get("category", "").upper() != category.upper():
+            continue
+        if search:
+            q = search.lower()
+            text_match = (
+                q in f.get("title", "").lower() or
+                q in f.get("description", "").lower() or
+                q in f.get("target", "").lower() or
+                q in f.get("category", "").lower()
+            )
+            if not text_match:
+                continue
+        filtered.append(f)
+
+    total = len(filtered)
+    paginated = filtered[skip:skip + limit]
+    return {
+        "total": total,
+        "limit": limit,
+        "skip": skip,
+        "findings": paginated
+    }
+
 
 
 @router.get(
